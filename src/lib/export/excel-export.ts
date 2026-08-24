@@ -15,6 +15,15 @@ import type { Project } from "@/types/project";
 
 export const METADATA_SHEET_NAME = "_metadata";
 export const PROJECT_SHEET_NAME = "_project";
+// Layout of the visible display sheet's header/data rows, its 메모 column's
+// header label, and the hidden id column's header label — shared with
+// excel-import.ts so it can locate both columns by label (rather than
+// re-deriving the layout math) and read back edits made to the visible memo
+// cells, matched to the right Work Item via the hidden id column.
+export const DISPLAY_SHEET_HEADER_ROW_INDEX = 2;
+export const DISPLAY_SHEET_FIRST_DATA_ROW_INDEX = 5;
+export const DISPLAY_SHEET_MEMO_HEADER_LABEL = "메모";
+export const DISPLAY_SHEET_ID_COLUMN_HEADER_LABEL = "_id";
 export const METADATA_HEADER = [
   "id",
   "name",
@@ -209,17 +218,24 @@ export async function exportProjectToExcel(
   const firstDateColumnIndex = memoColumnIndex + 1;
   const totalColumnCount =
     hierarchyColumnCount + 1 + timelineDates.length;
+  // Appended after every visible column so none of the layout/merge/border
+  // math above needs to account for it. Hidden — carries each row's Work
+  // Item id so a re-import can match an edited 메모 cell back to its item.
+  const idColumnIndex = totalColumnCount + 1;
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(sanitizeWorksheetName(project.name));
+  sheet.getColumn(idColumnIndex).hidden = true;
 
   // ---- Row layout ----
   const titleRowIndex = 1;
-  const monthRowIndex = 2;
-  const weekRowIndex = 3;
-  const dayRowIndex = 4;
-  const firstDataRowIndex = 5;
+  const monthRowIndex = DISPLAY_SHEET_HEADER_ROW_INDEX;
+  const weekRowIndex = monthRowIndex + 1;
+  const dayRowIndex = monthRowIndex + 2;
+  const firstDataRowIndex = DISPLAY_SHEET_FIRST_DATA_ROW_INDEX;
   const lastDataRowIndex = firstDataRowIndex + displayRows.length - 1;
+
+  sheet.getCell(monthRowIndex, idColumnIndex).value = DISPLAY_SHEET_ID_COLUMN_HEADER_LABEL;
 
   // Base grid: a uniform, very light gray border on every cell in the
   // header + data rectangle. Set first so later merges (which only need
@@ -304,7 +320,7 @@ export async function exportProjectToExcel(
 
   const memoHeaderCell = sheet.getCell(monthRowIndex, memoColumnIndex);
 
-  memoHeaderCell.value = "메모";
+  memoHeaderCell.value = DISPLAY_SHEET_MEMO_HEADER_LABEL;
   memoHeaderCell.font = { name: KOREAN_FONT, bold: true, size: 10, color: { argb: INFO_HEADER_FONT_COLOR } };
   memoHeaderCell.alignment = { horizontal: "center", vertical: "middle" };
   memoHeaderCell.fill = {
@@ -425,6 +441,10 @@ export async function exportProjectToExcel(
     memoCell.value = row.item.memo || "";
     memoCell.font = { name: KOREAN_FONT, italic: true, size: 9, color: { argb: MEMO_FONT_COLOR } };
     memoCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+
+    // Hidden id column, out of sight — lets a re-import tell which Work
+    // Item this row's 메모 cell belongs to and pick up edits made here.
+    sheet.getCell(excelRowIndex, idColumnIndex).value = row.item.id;
 
     sheet.getRow(excelRowIndex).height = 20;
 

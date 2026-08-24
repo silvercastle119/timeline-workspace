@@ -4,6 +4,10 @@ import { HEX_COLOR_PATTERN } from "@/lib/work-items/color-utils";
 import { validateTimelineRange } from "@/lib/timeline/timeline-validation";
 import type { Project, WorkItem } from "@/types/project";
 import {
+  DISPLAY_SHEET_FIRST_DATA_ROW_INDEX,
+  DISPLAY_SHEET_HEADER_ROW_INDEX,
+  DISPLAY_SHEET_ID_COLUMN_HEADER_LABEL,
+  DISPLAY_SHEET_MEMO_HEADER_LABEL,
   METADATA_HEADER,
   METADATA_SHEET_NAME,
   PROJECT_SHEET_NAME,
@@ -38,6 +42,43 @@ function cellToBoolean(value: ExcelJS.CellValue): boolean {
   if (typeof value === "boolean") return value;
 
   return cellToString(value).trim().toLowerCase() === "true";
+}
+
+/**
+ * Reads memo edits made directly in the visible display sheet, keyed by the
+ * Work Item id each row carries in a hidden id column (written by
+ * exportProjectToExcel). Returns an empty map for files without a
+ * recognizable display sheet — the _metadata memo is used as-is in that case.
+ */
+function extractVisibleSheetMemoOverrides(workbook: ExcelJS.Workbook): Map<string, string> {
+  const overrides = new Map<string, string>();
+
+  const displaySheet = workbook.worksheets.find(
+    (sheet) => sheet.name !== PROJECT_SHEET_NAME && sheet.name !== METADATA_SHEET_NAME
+  );
+
+  if (!displaySheet) return overrides;
+
+  let memoColumnIndex: number | null = null;
+  let idColumnIndex: number | null = null;
+
+  displaySheet.getRow(DISPLAY_SHEET_HEADER_ROW_INDEX).eachCell((cell, colNumber) => {
+    const label = cellToString(cell.value);
+    if (label === DISPLAY_SHEET_MEMO_HEADER_LABEL) memoColumnIndex = colNumber;
+    if (label === DISPLAY_SHEET_ID_COLUMN_HEADER_LABEL) idColumnIndex = colNumber;
+  });
+
+  if (memoColumnIndex === null || idColumnIndex === null) return overrides;
+
+  displaySheet.eachRow((row, rowNumber) => {
+    if (rowNumber < DISPLAY_SHEET_FIRST_DATA_ROW_INDEX) return;
+
+    const id = cellToString(row.getCell(idColumnIndex!).value);
+
+    if (id) overrides.set(id, cellToString(row.getCell(memoColumnIndex!).value));
+  });
+
+  return overrides;
 }
 
 export async function parseExcelToProject(
@@ -111,6 +152,8 @@ export async function parseExcelToProject(
     field: (typeof METADATA_HEADER)[number]
   ) => row.getCell(columnIndexByField.get(field)!).value;
 
+  const visibleSheetMemoOverrides = extractVisibleSheetMemoOverrides(workbook);
+
   const workItems: WorkItem[] = [];
   const seenIds = new Set<string>();
 
@@ -151,7 +194,11 @@ export async function parseExcelToProject(
         isUndecided: cellToBoolean(getField(row, "isUndecided")),
         active: cellToBoolean(getField(row, "active")),
         color: colorRaw && HEX_COLOR_PATTERN.test(colorRaw) ? colorRaw : null,
-        memo: cellToString(getField(row, "memo")),
+        // Prefer an edit made directly in the visible sheet's 메모 column,
+        // if this item had a row there; otherwise fall back to the
+        // lossless _metadata copy (covers collapsed/inactive items that
+        // never appear in the visible sheet).
+        memo: visibleSheetMemoOverrides.get(id) ?? cellToString(getField(row, "memo")),
         autoMemoNote: autoMemoNoteRaw || null,
       })
     );

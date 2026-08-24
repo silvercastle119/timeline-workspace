@@ -46,6 +46,7 @@ import {
   type WorkItemTimeline,
 } from "@/lib/work-items/tree-utils";
 import type { Project, WorkItem } from "@/types/project";
+import { AiPanel } from "@/components/ai/ai-panel";
 
 const DEFAULT_DAY_WIDTH = 40;
 const MIN_DAY_WIDTH = 20;
@@ -1080,6 +1081,13 @@ export default function Home() {
       behavior: "smooth",
       block: "start",
     });
+  };
+
+  const jumpToWorkItem = (itemId: string) => {
+    selectOnly(itemId);
+    treeListRef.current
+      ?.querySelector(`[data-row-id="${itemId}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   useEffect(() => {
@@ -2745,6 +2753,13 @@ export default function Home() {
           </aside>
         )}
       </div>
+
+      <AiPanel
+        project={project}
+        updateWorkItems={updateWorkItems}
+        onJumpToWorkItem={jumpToWorkItem}
+        isDetailPanelOpen={Boolean(selectedItem)}
+      />
 
       <button
         type="button"
