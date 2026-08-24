@@ -1,5 +1,7 @@
 export const DEFAULT_BAR_COLOR = "#71717a";
 
+export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
 // Coral → Apricot → Mustard → Lime → Green → Teal → Cyan → Blue → Indigo
 // → Purple → Rose → Pink. These hex values are shared verbatim with Excel
 // export — Excel never re-lightens/darkens/desaturates them, so a color
@@ -121,5 +123,7 @@ export function blendColors(colors: string[]): string {
 }
 
 export function colorToExcelArgb(hex: string): string {
-  return `FF${hex.replace("#", "").toUpperCase()}`;
+  const safeHex = HEX_COLOR_PATTERN.test(hex) ? hex : DEFAULT_BAR_COLOR;
+
+  return `FF${safeHex.replace("#", "").toUpperCase()}`;
 }

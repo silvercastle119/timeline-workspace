@@ -126,6 +126,20 @@ function applyBorderToRange(
   }
 }
 
+// Excel worksheet names can't contain these characters and are capped at 31
+// characters — this only normalizes the *sheet* name; project.name itself
+// is left untouched everywhere else (title cell, _project metadata row).
+const INVALID_WORKSHEET_NAME_CHARS = /[\\/*?:[\]]/g;
+const WORKSHEET_NAME_MAX_LENGTH = 31;
+
+function sanitizeWorksheetName(name: string): string {
+  const sanitized = name
+    .replace(INVALID_WORKSHEET_NAME_CHARS, "_")
+    .trim();
+
+  return (sanitized || "일정표").slice(0, WORKSHEET_NAME_MAX_LENGTH);
+}
+
 function getMonthKey(date: string) {
   return date.slice(0, 7);
 }
@@ -197,9 +211,7 @@ export async function exportProjectToExcel(
     hierarchyColumnCount + 1 + timelineDates.length;
 
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(
-    (project.name || "일정표").slice(0, 31)
-  );
+  const sheet = workbook.addWorksheet(sanitizeWorksheetName(project.name));
 
   // ---- Row layout ----
   const titleRowIndex = 1;

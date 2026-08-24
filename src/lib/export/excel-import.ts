@@ -1,5 +1,7 @@
 import ExcelJS from "exceljs";
 import { normalizeWorkItem } from "@/lib/work-items/tree-utils";
+import { HEX_COLOR_PATTERN } from "@/lib/work-items/color-utils";
+import { validateTimelineRange } from "@/lib/timeline/timeline-validation";
 import type { Project, WorkItem } from "@/types/project";
 import {
   METADATA_HEADER,
@@ -7,7 +9,20 @@ import {
   PROJECT_SHEET_NAME,
 } from "@/lib/export/excel-export";
 
-export class ExcelImportError extends Error {}
+export class ExcelImportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExcelImportError";
+  }
+}
+
+/** Excel import is rejected outright above this file size — kept in one
+ * place so the UI-level pre-check and the parser's own defense agree. */
+export const MAX_IMPORT_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
+/** Max number of Work Items accepted from the _metadata sheet in a single
+ * import. */
+export const MAX_IMPORT_WORK_ITEMS = 50_000;
 
 function cellToString(value: ExcelJS.CellValue): string {
   if (value === null || value === undefined) return "";
@@ -28,8 +43,21 @@ function cellToBoolean(value: ExcelJS.CellValue): boolean {
 export async function parseExcelToProject(
   fileData: ArrayBuffer
 ): Promise<Project> {
+  if (fileData.byteLength > MAX_IMPORT_FILE_SIZE_BYTES) {
+    throw new ExcelImportError(
+      "파일 크기가 너무 큽니다. 50MB 이하의 Excel 파일을 사용해주세요."
+    );
+  }
+
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(fileData);
+
+  try {
+    await workbook.xlsx.load(fileData);
+  } catch {
+    throw new ExcelImportError(
+      "Excel 파일을 읽을 수 없습니다. 파일이 손상되었거나 지원하지 않는 형식일 수 있습니다."
+    );
+  }
 
   const projectSheet = workbook.getWorksheet(PROJECT_SHEET_NAME);
   const metadataSheet = workbook.getWorksheet(METADATA_SHEET_NAME);
@@ -50,6 +78,15 @@ export async function parseExcelToProject(
 
     if (key) projectFields.set(key, value);
   });
+
+  const timelineRangeCheck = validateTimelineRange(
+    projectFields.get("timelineStart") ?? "",
+    projectFields.get("timelineEnd") ?? ""
+  );
+
+  if (!timelineRangeCheck.valid) {
+    throw new ExcelImportError(timelineRangeCheck.reason);
+  }
 
   const headerRow = metadataSheet.getRow(1);
   const columnIndexByField = new Map<string, number>();
@@ -75,12 +112,24 @@ export async function parseExcelToProject(
   ) => row.getCell(columnIndexByField.get(field)!).value;
 
   const workItems: WorkItem[] = [];
+  const seenIds = new Set<string>();
 
   metadataSheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
 
     const id = cellToString(getField(row, "id"));
     if (!id) return;
+    // Duplicate id: keep the first occurrence, ignore later rows so the
+    // Tree structure doesn't end up with two items sharing one id.
+    if (seenIds.has(id)) return;
+
+    if (workItems.length >= MAX_IMPORT_WORK_ITEMS) {
+      throw new ExcelImportError(
+        `가져올 수 있는 업무 수를 초과했습니다. 최대 ${MAX_IMPORT_WORK_ITEMS.toLocaleString()}개까지 불러올 수 있습니다.`
+      );
+    }
+
+    seenIds.add(id);
 
     const parentIdRaw = cellToString(getField(row, "parentId"));
     const startDateRaw = cellToString(getField(row, "startDate"));
@@ -101,7 +150,7 @@ export async function parseExcelToProject(
         autoTimeline: cellToBoolean(getField(row, "autoTimeline")),
         isUndecided: cellToBoolean(getField(row, "isUndecided")),
         active: cellToBoolean(getField(row, "active")),
-        color: colorRaw || null,
+        color: colorRaw && HEX_COLOR_PATTERN.test(colorRaw) ? colorRaw : null,
         memo: cellToString(getField(row, "memo")),
         autoMemoNote: autoMemoNoteRaw || null,
       })

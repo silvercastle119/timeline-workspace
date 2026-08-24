@@ -1,5 +1,10 @@
 const DAY_IN_MS = 1000 * 60 * 60 * 24;
 
+// Defensive upper bound on the number of dates getDatesInRange() will ever
+// materialize, independent of any validation callers are expected to do —
+// matches the project's max 10-year Timeline range plus a leap-year buffer.
+const MAX_DATE_RANGE_DAYS = 366 * 10;
+
 function parseDate(dateString: string) {
   const [year, month, day] = dateString
     .split("-")
@@ -26,7 +31,11 @@ export function getDatesInRange(
 ) {
   const totalDays = getDaysBetween(startDate, endDate);
 
-  if (totalDays < 0) {
+  if (
+    !Number.isFinite(totalDays) ||
+    totalDays < 0 ||
+    totalDays > MAX_DATE_RANGE_DAYS
+  ) {
     return [];
   }
 

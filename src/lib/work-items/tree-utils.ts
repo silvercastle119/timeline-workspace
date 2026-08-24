@@ -477,8 +477,11 @@ export function filterOutInactiveSubtrees(workItems: WorkItem[]): WorkItem[] {
   const itemsById = new Map(workItems.map((item) => [item.id, item]));
   const excludedIds = new Set<string>();
 
-  const isExcluded = (item: WorkItem): boolean => {
+  const isExcluded = (item: WorkItem, visiting: Set<string>): boolean => {
     if (excludedIds.has(item.id)) return true;
+    // Guards against a circular parentId chain (e.g. imported data where
+    // A's parent is B and B's parent is A) walking upward forever.
+    if (visiting.has(item.id)) return false;
 
     if (!item.active) {
       excludedIds.add(item.id);
@@ -488,14 +491,20 @@ export function filterOutInactiveSubtrees(workItems: WorkItem[]): WorkItem[] {
     if (item.parentId !== null) {
       const parent = itemsById.get(item.parentId);
 
-      if (parent && isExcluded(parent)) {
-        excludedIds.add(item.id);
-        return true;
+      if (parent) {
+        visiting.add(item.id);
+        const parentExcluded = isExcluded(parent, visiting);
+        visiting.delete(item.id);
+
+        if (parentExcluded) {
+          excludedIds.add(item.id);
+          return true;
+        }
       }
     }
 
     return false;
   };
 
-  return workItems.filter((item) => !isExcluded(item));
+  return workItems.filter((item) => !isExcluded(item, new Set()));
 }
