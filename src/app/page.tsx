@@ -37,6 +37,7 @@ import {
   getDescendantWorkItemIds,
   getDisplayTimelines,
   getEffectiveWorkItemTimelines,
+  getInactiveSubtreeIds,
   getNextSiblingOrder,
   getWorkItemDisplayRows,
   needsRebalance,
@@ -128,7 +129,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
             이름 여러 개 먼저 만들기
           </span>
           <span className="text-zinc-400">→</span>
-          <span className="rounded-full bg-zinc-900 px-2.5 py-1 text-white">
+          <span className="rounded-full bg-blue-600 px-2.5 py-1 text-white">
             완료
           </span>
           <span className="text-zinc-400">→</span>
@@ -801,6 +802,7 @@ export default function Home() {
   }, [isGuideOpen, closeGuide]);
 
   const workItems = project.workItems;
+  const inactiveSubtreeIds = getInactiveSubtreeIds(workItems);
   const timelineDates = getDatesInRange(
     project.timelineStart,
     project.timelineEnd
@@ -1589,58 +1591,177 @@ export default function Home() {
   return (
     <main className="flex h-screen min-h-0 flex-col bg-white text-zinc-900">
       {/* Header */}
-      <header className="flex min-h-20 shrink-0 items-center justify-between border-b border-zinc-200 px-5 py-3">
-        <div className="min-w-0 space-y-2">
-          <h1 className="text-base font-semibold tracking-tight">
-            Timeline Workspace
-          </h1>
+      <header className="flex shrink-0 flex-col gap-5 border-b border-zinc-200 px-4 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <Image
+            src="/logo.svg"
+            alt="TO-DO-LINE"
+            width={111}
+            height={32}
+            priority
+            className="h-8 w-auto"
+          />
 
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-zinc-500">프로젝트명:</span>
-            {isEditingProjectName ? (
-              <>
-                <input
-                  type="text"
-                  value={projectNameDraft}
-                  onChange={(event) =>
-                    setProjectNameDraft(event.target.value)
-                  }
-                  className="w-48 rounded-md border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-zinc-900"
-                />
-                <button
-                  type="button"
-                  onClick={saveProjectName}
-                  className="text-xs font-medium text-zinc-900"
+          <div className="flex shrink-0 items-center gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={undo}
+                disabled={!canUndo || isQuickAddingChildren}
+                className="text-xs font-medium text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+                aria-label="실행 취소"
+              >
+                실행취소
+              </button>
+              <button
+                type="button"
+                onClick={redo}
+                disabled={!canRedo || isQuickAddingChildren}
+                className="text-xs font-medium text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+                aria-label="다시 실행"
+              >
+                다시실행
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-zinc-200" />
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setDayWidth((width) =>
+                    Math.max(MIN_DAY_WIDTH, width - 4)
+                  )
+                }
+                disabled={dayWidth <= MIN_DAY_WIDTH}
+                className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+                aria-label="축소"
+              >
+                −
+              </button>
+              <span className="w-9 text-center text-xs text-zinc-500">
+                {Math.round((dayWidth / DEFAULT_DAY_WIDTH) * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setDayWidth((width) =>
+                    Math.min(MAX_DAY_WIDTH, width + 4)
+                  )
+                }
+                disabled={dayWidth >= MAX_DAY_WIDTH}
+                className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+                aria-label="확대"
+              >
+                +
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-zinc-200" />
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isExporting}
+                className="flex h-7 items-center rounded-md border border-zinc-300 px-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isExporting ? "내보내는 중..." : "Excel로 내보내기"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => importFileInputRef.current?.click()}
+                disabled={isImporting}
+                className="flex h-7 items-center rounded-md border border-zinc-300 px-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isImporting ? "불러오는 중..." : "Excel 불러오기"}
+              </button>
+              <input
+                ref={importFileInputRef}
+                type="file"
+                accept=".xlsx"
+                onChange={handleImportFileChange}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={openProjectList}
+                className="flex h-7 items-center gap-1 rounded-md border border-zinc-300 px-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  저장
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelProjectNameEdit}
-                  className="text-xs text-zinc-500"
-                >
-                  취소
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="font-medium">{project.name}</span>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingProjectName(true)}
-                  className="text-xs text-zinc-500 hover:text-zinc-900"
-                  aria-label="프로젝트명 편집"
-                >
-                  ✎
-                </button>
-              </>
-            )}
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                내 프로젝트
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-zinc-200" />
+
+            <div className="text-xs font-semibold text-blue-600">
+              {saveStatus === "saving" ? "저장 중..." : "저장됨"}
+            </div>
           </div>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-zinc-500">Timeline:</span>
+        <div className="min-w-0 space-y-1.5">
+          {isEditingProjectName ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                autoFocus
+                value={projectNameDraft}
+                onChange={(event) =>
+                  setProjectNameDraft(event.target.value)
+                }
+                className="min-w-0 border-b-2 border-blue-600 bg-transparent text-4xl font-bold tracking-tight text-zinc-900 outline-none md:text-5xl"
+              />
+              <button
+                type="button"
+                onClick={saveProjectName}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+              >
+                저장
+              </button>
+              <button
+                type="button"
+                onClick={cancelProjectNameEdit}
+                className="text-xs text-zinc-500 hover:text-zinc-700"
+              >
+                취소
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <h1 className="truncate text-4xl font-bold tracking-tight text-zinc-900 md:text-5xl">
+                {project.name}
+              </h1>
+              <button
+                type="button"
+                onClick={() => setIsEditingProjectName(true)}
+                className="shrink-0 text-base text-blue-600 hover:text-blue-700"
+                aria-label="프로젝트명 편집"
+              >
+                ✎
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
             {isEditingTimeline ? (
               <>
+                <span>Timeline:</span>
                 <input
                   type="date"
                   required
@@ -1648,7 +1769,7 @@ export default function Home() {
                   onChange={(event) =>
                     setTimelineStartDraft(event.target.value)
                   }
-                  className="rounded-md border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-zinc-900"
+                  className="rounded-md border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-blue-600"
                 />
                 <span className="text-zinc-400">~</span>
                 <input
@@ -1660,19 +1781,19 @@ export default function Home() {
                   onChange={(event) =>
                     setTimelineEndDraft(event.target.value)
                   }
-                  className="rounded-md border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-zinc-900"
+                  className="rounded-md border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-blue-600"
                 />
                 <button
                   type="button"
                   onClick={saveTimeline}
-                  className="text-xs font-medium text-zinc-900"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700"
                 >
                   저장
                 </button>
                 <button
                   type="button"
                   onClick={cancelTimelineEdit}
-                  className="text-xs text-zinc-500"
+                  className="text-xs text-zinc-500 hover:text-zinc-700"
                 >
                   취소
                 </button>
@@ -1684,13 +1805,16 @@ export default function Home() {
               </>
             ) : (
               <>
-                <span className="font-medium">
-                  {project.timelineStart} ~ {project.timelineEnd}
+                <span>
+                  Timeline:{" "}
+                  <span className="font-medium text-zinc-700">
+                    {project.timelineStart} ~ {project.timelineEnd}
+                  </span>
                 </span>
                 <button
                   type="button"
                   onClick={startTimelineEdit}
-                  className="text-xs text-zinc-500 hover:text-zinc-900"
+                  className="text-blue-600 hover:text-blue-700"
                   aria-label="Timeline 기간 편집"
                 >
                   ✎
@@ -1699,116 +1823,14 @@ export default function Home() {
             )}
           </div>
         </div>
-
-        <div className="flex shrink-0 items-center gap-3">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={undo}
-              disabled={!canUndo || isQuickAddingChildren}
-              className="flex h-6 items-center rounded border border-zinc-300 px-2 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="실행 취소"
-            >
-              ↶ 실행취소
-            </button>
-            <button
-              type="button"
-              onClick={redo}
-              disabled={!canRedo || isQuickAddingChildren}
-              className="flex h-6 items-center rounded border border-zinc-300 px-2 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="다시 실행"
-            >
-              ↷ 다시실행
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() =>
-                setDayWidth((width) =>
-                  Math.max(MIN_DAY_WIDTH, width - 4)
-                )
-              }
-              disabled={dayWidth <= MIN_DAY_WIDTH}
-              className="flex h-6 w-6 items-center justify-center rounded border border-zinc-300 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="축소"
-            >
-              −
-            </button>
-            <span className="w-10 text-center text-xs text-zinc-500">
-              {Math.round((dayWidth / DEFAULT_DAY_WIDTH) * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                setDayWidth((width) =>
-                  Math.min(MAX_DAY_WIDTH, width + 4)
-                )
-              }
-              disabled={dayWidth >= MAX_DAY_WIDTH}
-              className="flex h-6 w-6 items-center justify-center rounded border border-zinc-300 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="확대"
-            >
-              +
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              disabled={isExporting}
-              className="flex h-6 items-center rounded border border-zinc-300 px-2 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isExporting ? "내보내는 중..." : "Excel로 내보내기"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => importFileInputRef.current?.click()}
-              disabled={isImporting}
-              className="flex h-6 items-center rounded border border-zinc-300 px-2 text-xs text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isImporting ? "불러오는 중..." : "Excel 불러오기"}
-            </button>
-            <input
-              ref={importFileInputRef}
-              type="file"
-              accept=".xlsx"
-              onChange={handleImportFileChange}
-              className="hidden"
-            />
-
-            <button
-              type="button"
-              onClick={openProjectList}
-              className="flex h-6 items-center gap-1 rounded border border-zinc-300 px-2 text-xs text-zinc-600 hover:bg-zinc-50"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="12"
-                height="12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              내 프로젝트
-            </button>
-          </div>
-
-          <div className="text-xs text-zinc-500">
-            {saveStatus === "saving" ? "저장 중..." : "저장됨"}
-          </div>
-        </div>
       </header>
 
       {/* Workspace */}
-      <div className="flex min-h-0 flex-1">
+      <div
+        className={`flex min-h-0 flex-1 pl-4 ${
+          selectedItem ? "" : "pr-4"
+        }`}
+      >
         {/* Work Item Panel */}
         <section className="flex w-[320px] shrink-0 flex-col border-r border-zinc-200">
           <div className="flex h-12 items-center border-b border-zinc-200 px-4">
@@ -1839,7 +1861,7 @@ export default function Home() {
               const backgroundClass =
                 (isDropTarget && dropIndicator?.mode === "child") ||
                 isSelected
-                  ? "bg-zinc-100"
+                  ? "bg-blue-50"
                   : "hover:bg-zinc-50";
 
               return (
@@ -1853,7 +1875,7 @@ export default function Home() {
                   onPointerUp={(event) => handleTreeRowPointerUp(event, item)}
                   onPointerCancel={handleTreeRowPointerCancel}
                   className={`flex h-11 w-full touch-none select-none items-center border-t border-b text-left transition-colors ${backgroundClass} ${dropBorderClass} ${
-                    item.active ? "" : "opacity-40"
+                    inactiveSubtreeIds.has(item.id) ? "opacity-40" : ""
                   }`}
                 >
                   <div
@@ -1954,7 +1976,7 @@ export default function Home() {
                   <div
                     key={item.id}
                     className={`relative h-11 border-b border-zinc-100 ${
-                      item.active ? "" : "opacity-40"
+                      inactiveSubtreeIds.has(item.id) ? "opacity-40" : ""
                     }`}
                   >
                   <div className="absolute inset-0 flex">
@@ -2081,7 +2103,7 @@ export default function Home() {
                   }
                   aria-pressed={selectedItem.active}
                   className={`flex h-5 w-5 items-center justify-center ${
-                    selectedItem.active ? "text-zinc-700" : "text-zinc-400"
+                    selectedItem.active ? "text-blue-600" : "text-zinc-400"
                   }`}
                 >
                   {selectedItem.active ? (
@@ -2141,7 +2163,7 @@ export default function Home() {
                       event.target.value
                     )
                   }
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                 />
               </label>
 
@@ -2212,7 +2234,7 @@ export default function Home() {
                     onChange={(event) =>
                       updateWorkItem("autoTimeline", event.target.checked)
                     }
-                    className="h-4 w-4 accent-zinc-900"
+                    className="h-4 w-4 accent-blue-600"
                   />
                 </label>
               )}
@@ -2230,7 +2252,7 @@ export default function Home() {
                   onChange={(event) =>
                     toggleUndecided(event.target.checked)
                   }
-                  className="h-4 w-4 accent-zinc-900"
+                  className="h-4 w-4 accent-blue-600"
                 />
               </label>
 
@@ -2264,7 +2286,7 @@ export default function Home() {
                     )
                   }
                   disabled={selectedItem.autoTimeline || selectedItem.isUndecided}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 disabled:cursor-not-allowed disabled:bg-zinc-100"
+                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-zinc-100"
                 />
               </label>
 
@@ -2284,7 +2306,7 @@ export default function Home() {
                     )
                   }
                   disabled={selectedItem.autoTimeline || selectedItem.isUndecided}
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 disabled:cursor-not-allowed disabled:bg-zinc-100"
+                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-zinc-100"
                 />
               </label>
 
@@ -2301,7 +2323,7 @@ export default function Home() {
                   }
                   rows={3}
                   placeholder="메모 입력"
-                  className="w-full resize-none rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  className="w-full resize-none rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                 />
               </label>
             </div>
@@ -2365,7 +2387,7 @@ export default function Home() {
                         }
                       }}
                       placeholder="하위 항목 이름"
-                      className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                     />
                     <button
                       type="button"
@@ -2379,7 +2401,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={finishQuickAddChildren}
-                    className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm text-white transition hover:bg-zinc-700"
+                    className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
                   >
                     완료
                   </button>
@@ -2411,7 +2433,7 @@ export default function Home() {
         type="button"
         onClick={openGuide}
         aria-label="사용법 보기"
-        className={`fixed bottom-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 text-base font-semibold text-white shadow-lg transition-[right,transform] duration-200 ease-out hover:bg-zinc-700 active:scale-90 ${
+        className={`fixed bottom-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white shadow-lg transition-[right,transform] duration-200 ease-out hover:bg-blue-700 active:scale-90 ${
           selectedItem ? "right-[344px]" : "right-6"
         }`}
       >
@@ -2484,8 +2506,11 @@ export default function Home() {
                   className="h-9 w-9 shrink-0"
                 />
                 <p className="text-sm leading-relaxed text-zinc-700">
-                  <b className="text-zinc-900">Timeline Workspace</b>는
-                  프로젝트와 업무 일정을 타임라인으로 정리하는 도구입니다.
+                  <b className="text-zinc-900">TO-DO-LINE</b>은 업무와 업무
+                  사이의 흐름을 Timeline으로 정리하는 도구입니다.
+                  <span className="block text-xs text-zinc-400">
+                    업무를 잇고, 흐름을 보다.
+                  </span>
                 </p>
               </div>
 

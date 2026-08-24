@@ -2,23 +2,25 @@ export const DEFAULT_BAR_COLOR = "#71717a";
 
 export const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
-// Coral → Apricot → Mustard → Lime → Green → Teal → Cyan → Blue → Indigo
-// → Purple → Rose → Pink. These hex values are shared verbatim with Excel
-// export — Excel never re-lightens/darkens/desaturates them, so a color
-// picked here looks identical on both surfaces.
+// Soft pastel work-item palette — Red → Peach → Yellow → Green → Teal →
+// Blue → Indigo → Purple → Pink, in the TO-DO-LINE brand's restrained,
+// friendly tone (never saturated/loud). These hex values are shared
+// verbatim with Excel export — Excel never re-lightens/darkens/
+// desaturates them, so a color picked here looks identical on both
+// surfaces.
 export const DEFAULT_COLOR_PALETTE: string[] = [
-  "#E8757A",
-  "#E99B68",
-  "#D9B957",
-  "#A5C968",
-  "#5DBB7D",
-  "#50B7AE",
-  "#59B5CA",
-  "#5C8FDC",
-  "#777BD0",
-  "#9D73C8",
-  "#CA739F",
-  "#D889A8",
+  "#F2A0A0",
+  "#F3BE8C",
+  "#EFD48A",
+  "#C3DE9A",
+  "#9CD3AA",
+  "#93D0C7",
+  "#93CFE0",
+  "#93B8EA",
+  "#A6ACE8",
+  "#C3A8E0",
+  "#E3A8CB",
+  "#F5A9C0",
 ];
 
 function hexToRgb(hex: string): [number, number, number] {

@@ -469,11 +469,14 @@ export function getDisplayTimelines(
 }
 
 /**
- * Removes items with active=false along with their entire descendant
- * subtree. Used for Excel export, where inactive work items must not
- * appear at all (unlike the web Timeline, where they still render faded).
+ * Ids of every item that is inactive itself, or has an inactive ancestor
+ * somewhere above it — i.e. every item that `filterOutInactiveSubtrees`
+ * would drop from Excel. A child's own `active` flag is untouched either
+ * way; this only reports the *effective* (inherited) inactive state so
+ * the web Timeline can render it faded to match what Excel will actually
+ * show, without changing the underlying data.
  */
-export function filterOutInactiveSubtrees(workItems: WorkItem[]): WorkItem[] {
+export function getInactiveSubtreeIds(workItems: WorkItem[]): Set<string> {
   const itemsById = new Map(workItems.map((item) => [item.id, item]));
   const excludedIds = new Set<string>();
 
@@ -506,5 +509,18 @@ export function filterOutInactiveSubtrees(workItems: WorkItem[]): WorkItem[] {
     return false;
   };
 
-  return workItems.filter((item) => !isExcluded(item, new Set()));
+  workItems.forEach((item) => isExcluded(item, new Set()));
+
+  return excludedIds;
+}
+
+/**
+ * Removes items with active=false along with their entire descendant
+ * subtree. Used for Excel export, where inactive work items must not
+ * appear at all (unlike the web Timeline, where they still render faded).
+ */
+export function filterOutInactiveSubtrees(workItems: WorkItem[]): WorkItem[] {
+  const excludedIds = getInactiveSubtreeIds(workItems);
+
+  return workItems.filter((item) => !excludedIds.has(item.id));
 }
