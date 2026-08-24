@@ -57,234 +57,527 @@ const BAR_CLICK_MOVE_PX = 4;
 const ROOT_ZONE_PX = 24;
 const AUTO_UNDECIDED_MEMO = "일정 미정";
 
-type GuideSection = {
-  icon: string;
-  accent: string;
+type GuideStepContent = {
+  number: string;
   title: string;
   body: ReactNode;
 };
-
-const GUIDE_SECTIONS: GuideSection[] = [
-  {
-    icon: "/icons/guide/screen.svg",
-    accent: "#3E93A8",
-    title: "① 기본 화면 이해",
-    body: (
-      <ul className="list-disc space-y-1.5 pl-4">
-        <li>왼쪽: 프로젝트와 하위 업무 목록 (트리 구조)</li>
-        <li>오른쪽: 날짜별 Timeline</li>
-        <li>
-          Timeline의 가로 막대(Bar)로 각 업무의 기간을 확인할 수 있습니다.
-        </li>
-        <li>
-          하위 항목이 있는 업무는 옆의 화살표를 눌러 펼치거나 접을 수
-          있습니다.
-        </li>
-      </ul>
-    ),
-  },
-  {
-    icon: "/icons/guide/plus.svg",
-    accent: "#358655",
-    title: "② 프로젝트/Work Item 만들기",
-    body: (
-      <>
-        <ul className="list-disc space-y-1.5 pl-4">
-          <li>
-            왼쪽 목록 하단의 <GuideKbd>+ 항목 추가</GuideKbd>를 누르면 새
-            항목이 만들어집니다.
-          </li>
-          <li>
-            항목을 클릭하면 오른쪽에 상세 설정 화면이 열리고, 여기서
-            항목명을 입력해 이름을 정할 수 있습니다.
-          </li>
-        </ul>
-        <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-          <b>Tip</b> · 아무것도 선택하지 않은 상태면 최상위 프로젝트로,
-          이미 항목을 선택한 상태라면 그 항목의 하위 항목으로 추가돼요.
-        </div>
-      </>
-    ),
-  },
-  {
-    icon: "/icons/guide/list-plus.svg",
-    accent: "#3564AD",
-    title: "③ 하위 항목 만들기",
-    body: (
-      <>
-        <ul className="list-disc space-y-1.5 pl-4">
-          <li>
-            상위 항목을 선택한 뒤, 상세 설정 화면 하단의{" "}
-            <GuideKbd>+ 하위 항목 추가</GuideKbd>를 누릅니다.
-          </li>
-          <li>
-            이름을 입력하고 Enter(또는 <GuideKbd>추가</GuideKbd>)를 누르면
-            바로 추가됩니다. 필요한 이름을 연달아 여러 개 먼저 만들어 둘 수
-            있습니다.
-          </li>
-          <li>잘못 추가한 항목은 옆의 × 로 바로 지울 수 있습니다.</li>
-        </ul>
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs font-medium">
-          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-blue-700">
-            이름 여러 개 먼저 만들기
-          </span>
-          <span className="text-zinc-400">→</span>
-          <span className="rounded-full bg-blue-600 px-2.5 py-1 text-white">
-            완료
-          </span>
-          <span className="text-zinc-400">→</span>
-          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-blue-700">
-            하나씩 클릭해 상세 설정
-          </span>
-        </div>
-      </>
-    ),
-  },
-  {
-    icon: "/icons/guide/calendar.svg",
-    accent: "#B96E38",
-    title: "④ 일정 설정",
-    body: (
-      <>
-        <ul className="list-disc space-y-1.5 pl-4">
-          <li>
-            상세 설정 화면에서 시작일과 종료일을 입력하면 Timeline에 해당
-            기간만큼 Bar가 표시됩니다.
-          </li>
-          <li>
-            날짜가 아직 정해지지 않았다면 <GuideKbd>일정 미정</GuideKbd>을
-            체크하면 됩니다. Timeline에는 빗금 무늬로 표시됩니다.
-          </li>
-        </ul>
-        <div className="mt-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          <b>참고</b> · 화면 상단 Timeline 날짜(✎)에서 전체 기간을 따로
-          설정할 수 있어요. 최대 10년까지 가능해요.
-        </div>
-      </>
-    ),
-  },
-  {
-    icon: "/icons/guide/merge.svg",
-    accent: "#4E52A8",
-    title: "⑤ 하위 일정 자동 반영",
-    body: (
-      <>
-        <ul className="list-disc space-y-1.5 pl-4">
-          <li>
-            상위 항목의 상세 설정에서 <GuideKbd>하위 일정 자동 반영</GuideKbd>
-            을 켜면, 하위 항목들의 일정을 모아 상위 Timeline Bar로 자동
-            표시합니다.
-          </li>
-          <li>일정이 겹치는 경우에도 각 업무의 이름을 잃지 않고 보여줘요.</li>
-        </ul>
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs font-medium">
-          <span className="rounded-md px-2.5 py-1 text-white" style={{ backgroundColor: "#5DBB7D" }}>
-            잠자기
-          </span>
-          <span className="text-zinc-400">+</span>
-          <span className="rounded-md px-2.5 py-1 text-white" style={{ backgroundColor: "#E8757A" }}>
-            기획
-          </span>
-          <span className="text-zinc-400">→</span>
-          <span className="rounded-md bg-zinc-900 px-2.5 py-1 text-white">
-            잠자기 / 기획
-          </span>
-        </div>
-      </>
-    ),
-  },
-  {
-    icon: "/icons/guide/palette.svg",
-    accent: "#6F4F96",
-    title: "⑥ 색상",
-    body: (
-      <>
-        <ul className="list-disc space-y-1.5 pl-4">
-          <li>상세 설정 화면에서 항목별로 색상을 고를 수 있습니다.</li>
-          <li>
-            미리 준비된 팔레트에서 고르거나, <GuideKbd>+</GuideKbd>를 눌러
-            원하는 색을 직접 지정할 수 있습니다.
-          </li>
-          <li>같은 프로젝트나 업무를 색으로 구분해 두면 알아보기 쉬워요.</li>
-        </ul>
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {DEFAULT_COLOR_PALETTE.map((color) => (
-            <span
-              key={color}
-              className="h-4 w-4 rounded-full ring-1 ring-inset ring-black/10"
-              style={{ backgroundColor: color }}
-            />
-          ))}
-        </div>
-      </>
-    ),
-  },
-  {
-    icon: "/icons/guide/note.svg",
-    accent: "#93762C",
-    title: "⑦ 메모",
-    body: (
-      <ul className="list-disc space-y-1.5 pl-4">
-        <li>상세 설정 화면의 메모 입력창에 참고사항을 적을 수 있습니다.</li>
-        <li>
-          이름이나 날짜에 담기 어려운 내용(확인 필요 사항, 준비물 등)을
-          기록해 두는 용도예요.
-        </li>
-      </ul>
-    ),
-  },
-  {
-    icon: "/icons/guide/sheet.svg",
-    accent: "#2E7F78",
-    title: "⑧ Excel",
-    body: (
-      <>
-        <ul className="list-disc space-y-1.5 pl-4">
-          <li>
-            상단의 <GuideKbd>Excel로 내보내기</GuideKbd>로 현재 프로젝트를
-            Excel 파일로 저장합니다.
-          </li>
-          <li>
-            <GuideKbd>Excel 불러오기</GuideKbd>로 이전에 내보낸 파일을 다시
-            불러올 수 있습니다.
-          </li>
-          <li>일정을 백업하거나 다른 사람과 공유할 때 사용해요.</li>
-        </ul>
-        <div className="mt-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-          <b>주의</b> · 형식이 맞지 않거나 손상된 파일, 지나치게 큰 파일은
-          안전을 위해 불러오기가 거부될 수 있어요.
-        </div>
-      </>
-    ),
-  },
-];
-
-const GUIDE_FEATURE_TABLE: { feature: string; when: string }[] = [
-  { feature: "항목 추가", when: "새로운 프로젝트/업무를 만들 때" },
-  { feature: "하위 항목 추가", when: "하나의 프로젝트를 여러 세부 업무로 나눌 때" },
-  { feature: "색상", when: "프로젝트와 업무를 시각적으로 구분할 때" },
-  { feature: "시작일 / 종료일", when: "업무 일정을 정할 때" },
-  { feature: "일정 미정", when: "아직 날짜가 정해지지 않았을 때" },
-  { feature: "하위 일정 자동 반영", when: "상위 항목에 하위 업무 일정을 자동으로 보여줄 때" },
-  { feature: "메모", when: "업무 관련 참고사항을 기록할 때" },
-  { feature: "Excel로 내보내기", when: "일정을 Excel로 저장하거나 공유할 때" },
-  { feature: "Excel 불러오기", when: "기존 Excel 일정표를 다시 가져올 때" },
-];
-
-const GUIDE_STEPS: string[] = [
-  "+ 항목 추가로 프로젝트 만들기",
-  "+ 하위 항목 추가로 하위 업무 이름 여러 개 만들기",
-  "각 업무를 클릭해 시작일 · 종료일 입력",
-  "필요하면 색상 · 메모 · 자동 반영 설정",
-  "Timeline에서 결과 확인",
-  "필요하면 Excel로 내보내기",
-];
 
 function GuideKbd({ children }: { children: ReactNode }) {
   return (
     <span className="inline-flex items-center rounded-md border border-zinc-300 bg-zinc-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-zinc-700 shadow-sm">
       {children}
     </span>
+  );
+}
+
+function GuideExample({ children }: { children: ReactNode }) {
+  return (
+    <pre className="mt-1.5 overflow-x-auto whitespace-pre rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-zinc-600">
+      {children}
+    </pre>
+  );
+}
+
+function GuideNote({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+      {children}
+    </div>
+  );
+}
+
+const GUIDE_TABS = ["전체 설명", "요약 설명", "자주 묻는 질문"] as const;
+
+const GUIDE_FULL_STEPS: GuideStepContent[] = [
+  {
+    number: "01",
+    title: "프로젝트를 시작하세요",
+    body: (
+      <>
+        <p>
+          <b className="text-zinc-900">프로젝트명 설정</b>
+          <br />
+          화면 왼쪽 상단의 <b className="text-zinc-900">프로젝트명 옆</b>{" "}
+          <GuideKbd>✎</GuideKbd> <b className="text-zinc-900">아이콘</b>을
+          클릭하여 프로젝트명을 설정합니다.
+        </p>
+        <p>
+          <b className="text-zinc-900">전체 Timeline 설정</b>
+          <br />
+          프로젝트명 아래 <GuideKbd>Timeline:</GuideKbd>{" "}
+          <b className="text-zinc-900">옆</b> <GuideKbd>✎</GuideKbd>{" "}
+          <b className="text-zinc-900">아이콘</b>을 클릭하여 프로젝트가
+          진행되는 전체 기간을 설정합니다.
+        </p>
+        <p>설정한 기간이 화면 상단 Timeline의 전체 범위가 됩니다.</p>
+      </>
+    ),
+  },
+  {
+    number: "02",
+    title: "프로젝트의 업무 구조를 입력하세요",
+    body: (
+      <>
+        <p>
+          화면 <b className="text-zinc-900">왼쪽 하단의</b>{" "}
+          <GuideKbd>+ 항목 추가</GuideKbd> <b className="text-zinc-900">버튼</b>
+          을 클릭하여 프로젝트에서 진행할 주요 업무를 구성합니다.
+        </p>
+        <p>예를 들어 홈페이지 리뉴얼 프로젝트라면:</p>
+        <GuideExample>{`기획
+디자인
+개발
+콘텐츠 제작
+QA
+오픈`}</GuideExample>
+        <p>과 같이 프로젝트의 주요 업무를 입력할 수 있습니다.</p>
+        <p>
+          이 단계에서는 각각의 업무에 세부 일정을 입력하기보다,{" "}
+          <b className="text-zinc-900">
+            프로젝트에서 어떤 업무를 어떤 구조로 진행할 것인지 구성하는 것
+          </b>
+          에 집중합니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "03",
+    title: "각 업무의 세부 업무를 추가하세요",
+    body: (
+      <>
+        <p>
+          먼저 <b className="text-zinc-900">왼쪽 Work Items에서 세부 업무를 추가할 상위 업무를 클릭</b>합니다.
+        </p>
+        <p>그러면 오른쪽에 Work Item 상세 패널이 열립니다.</p>
+        <p>
+          상세 패널 하단의 <GuideKbd>+ 하위 항목 추가</GuideKbd>{" "}
+          <b className="text-zinc-900">버튼</b>을 클릭하여 필요한 세부 업무를
+          추가합니다.
+        </p>
+        <p>
+          예를 들어 <GuideKbd>디자인</GuideKbd>을 선택했다면:
+        </p>
+        <GuideExample>{`디자인
+ ├─ 메인 페이지 디자인
+ ├─ 서브 페이지 디자인
+ └─ 모바일 디자인`}</GuideExample>
+        <p>처럼 구성할 수 있습니다.</p>
+        <p>
+          같은 방법으로 <GuideKbd>개발</GuideKbd>을 선택하여:
+        </p>
+        <GuideExample>{`개발
+ ├─ 프론트엔드 개발
+ ├─ CMS 연동
+ └─ 반응형 대응`}</GuideExample>
+        <p>과 같이 세부 업무를 추가할 수 있습니다.</p>
+        <p>즉,</p>
+        <GuideNote>
+          <b className="text-zinc-900">상위 업무 클릭 → 우측 상세 패널 →{" "}
+          <GuideKbd>+ 하위 항목 추가</GuideKbd></b>
+        </GuideNote>
+        <p>순서로 세부 업무를 추가합니다.</p>
+      </>
+    ),
+  },
+  {
+    number: "04",
+    title: "각 업무의 일정을 설정하세요",
+    body: (
+      <>
+        <p>일정을 입력할 Work Item을 클릭합니다.</p>
+        <p>
+          오른쪽 상세 패널에서 <GuideKbd>시작일</GuideKbd>과{" "}
+          <GuideKbd>종료일</GuideKbd>을 설정합니다.
+        </p>
+        <p>입력한 일정은 Timeline에 막대로 표시됩니다.</p>
+      </>
+    ),
+  },
+  {
+    number: "05",
+    title: "Timeline의 막대를 직접 조정하세요",
+    body: (
+      <>
+        <p>
+          Timeline에 표시된 일정 막대를 직접 드래그하여 일정을 조정할 수
+          있습니다.
+        </p>
+        <p>
+          <b className="text-zinc-900">막대 전체를 이동하기</b>
+          <br />
+          막대의 가운데 부분을 잡고 드래그하면{" "}
+          <b className="text-zinc-900">업무의 시작일과 종료일을 함께 이동</b>
+          할 수 있습니다.
+        </p>
+        <p>
+          <b className="text-zinc-900">업무 기간을 늘리거나 줄이기</b>
+          <br />
+          막대의 <b className="text-zinc-900">왼쪽 또는 오른쪽 끝부분을 잡고 드래그</b>
+          하면 업무 기간을 조정할 수 있습니다.
+        </p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>왼쪽 끝 → 시작일 변경</li>
+          <li>오른쪽 끝 → 종료일 변경</li>
+        </ul>
+        <p>
+          따라서 날짜를 직접 입력하지 않아도 Timeline을 보면서 업무의 위치와
+          기간을 직관적으로 조정할 수 있습니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "06",
+    title: "하위 일정 자동 반영을 사용하세요",
+    body: (
+      <>
+        <p>
+          상위 업무의 상세 패널에서 <GuideKbd>하위 일정 자동 반영</GuideKbd>{" "}
+          체크박스를 선택하면 하위 업무의 일정에 따라 상위 업무의 일정이
+          반영됩니다.
+        </p>
+        <p>예를 들어:</p>
+        <GuideExample>{`디자인
+ ├─ 메인 페이지 디자인   09.08 ~ 09.18
+ ├─ 서브 페이지 디자인   09.15 ~ 09.25
+ └─ 모바일 디자인        09.22 ~ 10.02`}</GuideExample>
+        <p>
+          이 경우 가장 먼저 시작하는 하위 업무가 <b className="text-zinc-900">09.08</b>,
+          가장 늦게 끝나는 하위 업무가 <b className="text-zinc-900">10.02</b>이므로,
+        </p>
+        <GuideNote>
+          <b className="text-zinc-900">디자인: 09.08 ~ 10.02</b>
+        </GuideNote>
+        <p>로 상위 업무의 일정이 자동으로 반영됩니다.</p>
+        <p>
+          즉, <b className="text-zinc-900">상위 업무의 시작일은 하위 업무 중 가장 이른 시작일</b>,{" "}
+          <b className="text-zinc-900">종료일은 가장 늦은 종료일</b>을 기준으로
+          설정됩니다.
+        </p>
+        <p>
+          이를 통해 하위 업무의 일정만 관리해도 상위 업무가 차지하는{" "}
+          <b className="text-zinc-900">전체 작업 기간을 자동으로 확인</b>할 수
+          있습니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "07",
+    title: "일정이 정해지지 않은 업무는 '일정 미정'으로 관리하세요",
+    body: (
+      <>
+        <p>
+          아직 일정이 확정되지 않은 업무는 날짜를 입력하지 않고{" "}
+          <GuideKbd>일정 미정</GuideKbd>으로 관리할 수 있습니다.
+        </p>
+        <p>
+          해당 Work Item을 클릭한 뒤 우측 상세 패널의{" "}
+          <GuideKbd>일정 미정</GuideKbd> <b className="text-zinc-900">체크박스</b>
+          를 선택합니다.
+        </p>
+        <p>
+          업무 구조에는 포함하면서 일정이 아직 확정되지 않은 업무를 별도로
+          관리할 수 있습니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "08",
+    title: "전체적인 프로젝트 흐름을 확인하세요",
+    body: (
+      <>
+        <p>
+          업무와 일정을 모두 입력했다면 Timeline을 통해 프로젝트 전체 흐름을
+          확인합니다.
+        </p>
+        <p>
+          왼쪽에서는 <b className="text-zinc-900">업무의 구조와 위계</b>를,
+          오른쪽에서는 <b className="text-zinc-900">업무의 시간적 흐름</b>을
+          확인할 수 있습니다.
+        </p>
+        <p>Timeline을 통해 다음과 같은 내용을 한눈에 파악할 수 있습니다.</p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>어떤 업무가 언제 시작하고 끝나는지</li>
+          <li>어떤 업무가 동시에 진행되는지</li>
+          <li>특정 기간에 업무가 집중되어 있는지</li>
+          <li>업무가 어떤 순서로 이어지는지</li>
+          <li>프로젝트 전체 일정이 적절하게 구성되어 있는지</li>
+        </ul>
+        <p>
+          필요하다면 Timeline의 막대를 다시 드래그하거나 상세 패널에서
+          시작일과 종료일을 수정하여 일정을 조정할 수 있습니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "09",
+    title: "프로젝트를 Excel로 내보내세요",
+    body: (
+      <>
+        <p>
+          프로젝트의 업무와 일정 구성을 완료했다면 화면{" "}
+          <b className="text-zinc-900">오른쪽 상단의</b>{" "}
+          <GuideKbd>Excel로 내보내기</GuideKbd> <b className="text-zinc-900">버튼</b>을
+          클릭합니다.
+        </p>
+        <p>
+          현재 TO-DO-LINE에서 관리하고 있는 프로젝트 데이터를 Excel 파일로
+          내보낼 수 있습니다.
+        </p>
+        <p>
+          내보낸 Excel은 프로젝트 자료 보관이나 업무 및 일정 공유 등에 활용할
+          수 있습니다.
+        </p>
+      </>
+    ),
+  },
+];
+
+const GUIDE_SUMMARY_STEPS: GuideStepContent[] = [
+  {
+    number: "01",
+    title: "프로젝트 설정",
+    body: (
+      <>
+        프로젝트명 옆 <GuideKbd>✎</GuideKbd> → 프로젝트명 설정 / Timeline 옆{" "}
+        <GuideKbd>✎</GuideKbd> → 전체 기간 설정
+      </>
+    ),
+  },
+  {
+    number: "02",
+    title: "업무 구조 입력",
+    body: (
+      <>
+        왼쪽 하단 <GuideKbd>+ 항목 추가</GuideKbd> → 주요 업무 구성
+      </>
+    ),
+  },
+  {
+    number: "03",
+    title: "세부 업무 추가",
+    body: (
+      <>
+        상위 업무 선택 → 우측 상세 패널 <GuideKbd>+ 하위 항목 추가</GuideKbd>
+      </>
+    ),
+  },
+  {
+    number: "04",
+    title: "일정 설정",
+    body: (
+      <>
+        Work Item 선택 → <GuideKbd>시작일</GuideKbd> /{" "}
+        <GuideKbd>종료일</GuideKbd> 설정
+      </>
+    ),
+  },
+  {
+    number: "05",
+    title: "Timeline 조정",
+    body: <>막대 전체를 드래그하여 이동하거나 양끝을 드래그하여 기간 조정</>,
+  },
+  {
+    number: "06",
+    title: "하위 일정 자동 반영",
+    body: (
+      <>
+        <GuideKbd>하위 일정 자동 반영</GuideKbd> 선택 → 하위 업무 일정에 따라
+        상위 업무 일정 반영
+      </>
+    ),
+  },
+  {
+    number: "07",
+    title: "일정 미정",
+    body: (
+      <>
+        <GuideKbd>일정 미정</GuideKbd> 선택 → 아직 날짜가 정해지지 않은 업무
+        관리
+      </>
+    ),
+  },
+  {
+    number: "08",
+    title: "전체 흐름 확인",
+    body: <>Timeline에서 업무 구조와 시간 흐름 확인</>,
+  },
+  {
+    number: "09",
+    title: "Excel Export",
+    body: (
+      <>
+        오른쪽 상단 <GuideKbd>Excel로 내보내기</GuideKbd> 클릭
+      </>
+    ),
+  },
+];
+
+type GuideFaqItem = {
+  question: string;
+  answer: ReactNode;
+};
+
+const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
+  {
+    question: "여러 막대를 한 번에 수정하려면 어떻게 하나요?",
+    answer: (
+      <>
+        <p>
+          여러 업무의 일정이나 정보를 한꺼번에 수정해야 하는 경우 Excel을
+          활용할 수 있습니다.
+        </p>
+        <p>
+          TO-DO-LINE에서 <GuideKbd>Excel로 내보내기</GuideKbd>한 뒤 필요한
+          내용을 수정하고 <GuideKbd>Excel 불러오기</GuideKbd>로 다시
+          가져오는 방식으로 여러 업무의 데이터를 한 번에 관리할 수 있습니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    question: "이미 만든 Excel을 다시 수정하고 싶어요.",
+    answer: (
+      <>
+        <p>
+          가장 편리한 방법은 TO-DO-LINE에서 내보낸 Excel의 구조를 그대로
+          사용하는 것입니다.
+        </p>
+        <p>
+          기존에 TO-DO-LINE에서 <GuideKbd>Excel로 내보내기</GuideKbd>한
+          파일을 열어 필요한 업무나 일정 데이터를 수정한 뒤{" "}
+          <GuideKbd>Excel 불러오기</GuideKbd>로 다시 가져오면 됩니다.
+        </p>
+        <p>
+          TO-DO-LINE에서 Export한 Excel은 서비스에서 사용하는 데이터 구조를
+          이미 갖추고 있기 때문에, 새로운 Excel 파일을 처음부터 만드는 것보다
+          기존 Export 파일을 수정하는 것이 편리합니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    question: "업무의 위치를 바꾸고 싶어요.",
+    answer: (
+      <>
+        <p>
+          Work Item의 위치를 변경하여 프로젝트의 업무 구조를 정리할 수
+          있습니다.
+        </p>
+        <p>
+          업무의 위치를 변경하면 동일한 그룹 안에서 업무의 순서를 조정하거나,
+          다른 그룹으로 업무를 이동할 수 있습니다.
+        </p>
+        <p>
+          왼쪽 Work Items 목록에서 옮기려는 업무를 눌러 원하는 위치로
+          드래그합니다. 대상 업무 행의 위쪽에 놓으면 그 업무 위로, 아래쪽에
+          놓으면 그 업무 아래로 순서가 바뀝니다. 목록의 왼쪽 가장자리에 놓으면
+          해당 업무가 최상위로 이동합니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    question: "업무를 다른 그룹으로 옮기고 싶어요.",
+    answer: (
+      <>
+        <p>업무를 다른 상위 업무 아래로 이동하여 업무의 그룹을 변경할 수 있습니다.</p>
+        <p>
+          예를 들어 기존에 <GuideKbd>기획</GuideKbd> 아래에 있던 업무를{" "}
+          <GuideKbd>디자인</GuideKbd> 아래로 이동하면 해당 업무의 상위 그룹이
+          변경됩니다.
+        </p>
+        <p>
+          이동할 업무를 눌러 원하는 상위 업무 행의 가운데 부분에 드래그하여
+          놓으면 그 업무의 하위 항목으로 이동합니다. 업무의 위치를 변경할
+          때는 대상 행의 위쪽/아래쪽 가장자리(순서만 변경)와 가운데
+          (상위 그룹 변경)를 구분해서 놓아야 합니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    question: "일정 정보 데이터를 플랫폼 운영 측에서 열람하나요?",
+    answer: (
+      <p>
+        TO-DO-LINE의 프로젝트 데이터는 별도의 서버로 전송되지 않고, 사용
+        중인 브라우저의 로컬 저장소(IndexedDB)에만 저장됩니다. 따라서
+        플랫폼 운영 측에서 해당 데이터를 열람할 수 없습니다.
+      </p>
+    ),
+  },
+  {
+    question: "Timeline에서 업무 일정을 직접 옮길 수 있나요?",
+    answer: (
+      <p>
+        네. Timeline의 일정 막대를 직접 드래그할 수 있습니다. 막대 전체를
+        잡고 드래그하면 일정 전체가 이동하고, 막대의 양끝을 잡고 드래그하면
+        업무 기간을 늘리거나 줄일 수 있습니다.
+      </p>
+    ),
+  },
+  {
+    question: "하위 업무의 일정이 상위 업무에 반영되나요?",
+    answer: (
+      <p>
+        상위 업무의 상세 패널에서 <GuideKbd>하위 일정 자동 반영</GuideKbd>을
+        선택하면 하위 업무의 일정이 상위 업무에 반영됩니다.
+      </p>
+    ),
+  },
+];
+
+function GuideFaqSection({ items }: { items: GuideFaqItem[] }) {
+  const [openIndexes, setOpenIndexes] = useState<Set<number>>(new Set());
+
+  const toggle = (index: number) => {
+    setOpenIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="divide-y divide-zinc-200 rounded-xl border border-zinc-200">
+      {items.map((item, index) => {
+        const isOpen = openIndexes.has(index);
+
+        return (
+          <div key={item.question}>
+            <button
+              type="button"
+              onClick={() => toggle(index)}
+              aria-expanded={isOpen}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+            >
+              <span>{item.question}</span>
+              <span
+                className={`shrink-0 text-zinc-400 transition-transform duration-200 ${
+                  isOpen ? "rotate-180" : ""
+                }`}
+              >
+                ▾
+              </span>
+            </button>
+            {isOpen && (
+              <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed text-zinc-700">
+                {item.answer}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -851,6 +1144,11 @@ export default function Home() {
         workItems: updater(currentProject.workItems),
       })
     );
+  };
+
+  const startProjectNameEdit = () => {
+    setProjectNameDraft(project.name);
+    setIsEditingProjectName(true);
   };
 
   const saveProjectName = () => {
@@ -1725,6 +2023,15 @@ export default function Home() {
                 onChange={(event) =>
                   setProjectNameDraft(event.target.value)
                 }
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  if (event.nativeEvent.isComposing || event.keyCode === 229) {
+                    return;
+                  }
+
+                  event.preventDefault();
+                  saveProjectName();
+                }}
                 className="min-w-0 border-b-2 border-blue-600 bg-transparent text-4xl font-bold tracking-tight text-zinc-900 outline-none md:text-5xl"
               />
               <button
@@ -1749,7 +2056,7 @@ export default function Home() {
               </h1>
               <button
                 type="button"
-                onClick={() => setIsEditingProjectName(true)}
+                onClick={startProjectNameEdit}
                 className="shrink-0 text-base text-blue-600 hover:text-blue-700"
                 aria-label="프로젝트명 편집"
               >
@@ -1769,6 +2076,11 @@ export default function Home() {
                   onChange={(event) =>
                     setTimelineStartDraft(event.target.value)
                   }
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    saveTimeline();
+                  }}
                   className="rounded-md border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-blue-600"
                 />
                 <span className="text-zinc-400">~</span>
@@ -1781,6 +2093,11 @@ export default function Home() {
                   onChange={(event) =>
                     setTimelineEndDraft(event.target.value)
                   }
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    saveTimeline();
+                  }}
                   className="rounded-md border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-blue-600"
                 />
                 <button
@@ -2460,10 +2777,10 @@ export default function Home() {
             <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-zinc-900">
-                  사용법
+                  TO-DO-LINE 사용 설명서
                 </h2>
                 <p className="text-xs text-zinc-500">
-                  처음 사용해도 3분이면 충분해요
+                  업무를 잇고, 흐름을 보다.
                 </p>
               </div>
               <button
@@ -2476,28 +2793,27 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-zinc-200 bg-zinc-50/70 px-5 py-2.5">
-              {GUIDE_SECTIONS.map((section, index) => (
-                <button
-                  key={section.title}
-                  type="button"
-                  onClick={() => scrollToGuideSection(index)}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 active:scale-95"
-                >
-                  <Image
-                    src={section.icon}
-                    alt=""
-                    width={16}
-                    height={16}
-                    className="h-4 w-4"
-                  />
-                  {section.title}
-                </button>
-              ))}
+            <div className="flex shrink-0 flex-col gap-1.5 border-b border-zinc-200 bg-zinc-50/70 px-5 py-2.5">
+              <p className="text-[11px] text-zinc-400">
+                상단 메뉴에서 원하는 내용을 선택하면 해당 위치로 이동할 수
+                있습니다.
+              </p>
+              <div className="flex gap-1.5 overflow-x-auto">
+                {GUIDE_TABS.map((tab, index) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => scrollToGuideSection(index)}
+                    className="shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50 active:scale-95"
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5">
-              <div className="mb-5 flex items-center gap-3 rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-4">
+              <div className="mb-6 flex items-center gap-3 rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-4">
                 <Image
                   src="/icons/guide/screen.svg"
                   alt=""
@@ -2506,113 +2822,98 @@ export default function Home() {
                   className="h-9 w-9 shrink-0"
                 />
                 <p className="text-sm leading-relaxed text-zinc-700">
-                  <b className="text-zinc-900">TO-DO-LINE</b>은 업무와 업무
-                  사이의 흐름을 Timeline으로 정리하는 도구입니다.
-                  <span className="block text-xs text-zinc-400">
-                    업무를 잇고, 흐름을 보다.
-                  </span>
+                  TO-DO-LINE은 프로젝트의 업무 구조와 일정을 Timeline으로
+                  구성하여{" "}
+                  <b className="text-zinc-900">
+                    업무의 위계와 시간의 흐름을 한눈에 확인할 수 있도록 돕는
+                    업무 관리 도구
+                  </b>
+                  입니다.
                 </p>
               </div>
 
-              <div className="columns-1 gap-4 md:columns-2">
-                {GUIDE_SECTIONS.map((section, index) => (
-                  <div
-                    key={section.title}
-                    ref={(el) => {
-                      guideSectionRefs.current[index] = el;
-                    }}
-                    style={{
-                      borderLeftWidth: 3,
-                      borderLeftColor: section.accent,
-                      animationDelay: `${index * 45}ms`,
-                    }}
-                    className="mb-4 break-inside-avoid rounded-xl border border-zinc-200 p-4 [animation-fill-mode:backwards] motion-safe:animate-[guide-card-in_320ms_ease-out]"
-                  >
-                    <div className="mb-2.5 flex items-center gap-2.5">
-                      <Image
-                        src={section.icon}
-                        alt=""
-                        width={32}
-                        height={32}
-                        className="h-8 w-8 shrink-0"
-                      />
-                      <h3 className="text-sm font-semibold text-zinc-900">
-                        {section.title}
-                      </h3>
+              <div
+                ref={(el) => {
+                  guideSectionRefs.current[0] = el;
+                }}
+              >
+                <h2 className="mb-1 text-lg font-bold text-zinc-900">
+                  전체 설명
+                </h2>
+                <p className="mb-4 text-xs text-zinc-500">
+                  프로젝트를 시작하는 단계부터 Excel 내보내기까지, 전체
+                  사용 흐름을 순서대로 확인할 수 있습니다.
+                </p>
+                <div className="space-y-4">
+                  {GUIDE_FULL_STEPS.map((step) => (
+                    <div
+                      key={step.number}
+                      className="rounded-xl border border-zinc-200 p-5"
+                    >
+                      <div className="mb-2.5 flex items-center gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                          {step.number}
+                        </span>
+                        <h3 className="text-base font-semibold text-zinc-900">
+                          {step.title}
+                        </h3>
+                      </div>
+                      <div className="space-y-2.5 pl-11 text-sm leading-relaxed text-zinc-700">
+                        {step.body}
+                      </div>
                     </div>
-                    <div className="text-sm leading-relaxed text-zinc-700">
-                      {section.body}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-2 space-y-2">
-                <h3 className="text-sm font-semibold text-zinc-900">
-                  한눈에 보는 기능 정리
-                </h3>
-                <div className="overflow-x-auto rounded-lg border border-zinc-200">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-zinc-50 text-zinc-500">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">기능</th>
-                        <th className="px-3 py-2 font-medium">
-                          무엇을 할 때 사용하나요?
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100">
-                      {GUIDE_FEATURE_TABLE.map((row) => (
-                        <tr
-                          key={row.feature}
-                          className="transition hover:bg-blue-50/60"
-                        >
-                          <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900">
-                            {row.feature}
-                          </td>
-                          <td className="px-3 py-2 text-zinc-600">
-                            {row.when}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  ))}
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div>
-                  <h3 className="mb-3 text-sm font-semibold text-zinc-900">
-                    가장 쉬운 사용 순서
-                  </h3>
-                  <ol className="relative">
-                    {GUIDE_STEPS.map((step, index) => (
-                      <li
-                        key={step}
-                        className="relative flex gap-3 pb-3.5 last:pb-0"
-                      >
-                        {index < GUIDE_STEPS.length - 1 && (
-                          <span className="absolute left-[11px] top-6 h-full w-px bg-zinc-200" />
-                        )}
-                        <span className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-semibold text-white">
-                          {index + 1}
-                        </span>
-                        <span className="pt-0.5 text-sm text-zinc-700">
-                          {step}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
+              <div
+                ref={(el) => {
+                  guideSectionRefs.current[1] = el;
+                }}
+                className="mt-10"
+              >
+                <h2 className="mb-1 text-lg font-bold text-zinc-900">
+                  요약 설명
+                </h2>
+                <p className="mb-4 text-xs text-zinc-500">
+                  핵심적인 조작 방법만 짧게 확인하고 싶다면 아래 요약을
+                  참고하세요.
+                </p>
+                <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
+                  {GUIDE_SUMMARY_STEPS.map((step) => (
+                    <div
+                      key={step.number}
+                      className="flex items-start gap-3 px-4 py-3"
+                    >
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-semibold text-white">
+                        {step.number}
+                      </span>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-semibold text-zinc-900">
+                          {step.title}
+                        </h4>
+                        <div className="text-xs leading-relaxed text-zinc-600">
+                          {step.body}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </div>
 
-                <div className="flex items-center justify-center rounded-xl bg-zinc-900 p-5 text-center">
-                  <p className="text-sm leading-relaxed text-zinc-300">
-                    핵심은 딱 3단계예요
-                    <span className="mt-1.5 block text-base font-semibold text-white">
-                      프로젝트 → 하위 업무 → 일정 입력
-                    </span>
-                  </p>
-                </div>
+              <div
+                ref={(el) => {
+                  guideSectionRefs.current[2] = el;
+                }}
+                className="mt-10"
+              >
+                <h2 className="mb-1 text-lg font-bold text-zinc-900">
+                  자주 묻는 질문
+                </h2>
+                <p className="mb-4 text-xs text-zinc-500">
+                  질문을 클릭하면 답변이 펼쳐집니다.
+                </p>
+                <GuideFaqSection items={GUIDE_FAQ_ITEMS} />
               </div>
             </div>
           </div>
