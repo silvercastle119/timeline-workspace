@@ -47,6 +47,7 @@ import {
 } from "@/lib/work-items/tree-utils";
 import type { Project, WorkItem } from "@/types/project";
 import { AiPanel } from "@/components/ai/ai-panel";
+import { trackEvent } from "@/lib/analytics";
 
 const DEFAULT_DAY_WIDTH = 40;
 const MIN_DAY_WIDTH = 20;
@@ -845,6 +846,15 @@ export default function Home() {
     canRedo,
   } = useHistoryState<Project>(createDefaultProject);
   const dragSnapshotRef = useRef<Project | null>(null);
+  // Analytics: dedupes project_open so switching to the same project twice
+  // (or an effect re-running under StrictMode) doesn't double-fire it.
+  const lastOpenedProjectIdRef = useRef<string | null>(null);
+  // Analytics: bundles every field edit made while a Work Item's Detail
+  // Panel is open into a single item_change, fired once when the panel
+  // closes (selection moves elsewhere) — only if something actually changed.
+  const pendingItemChangeRef = useRef<{ itemId: string; hasChange: boolean } | null>(
+    null
+  );
   const colorPickerSnapshotRef = useRef<Project | null>(null);
   const customColorInputRef = useRef<HTMLInputElement | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving">("idle");
@@ -899,6 +909,18 @@ export default function Home() {
   const selectedItemId =
     selectedItemIds.size === 1 ? [...selectedItemIds][0] : null;
 
+  // Analytics: fires item_change for the just-closed Detail Panel session,
+  // only if a field was actually edited during it (see updateWorkItem /
+  // toggleUndecided / the color-picker "change" listener below, which are
+  // the only places that flip hasChange to true).
+  const flushPendingItemChange = () => {
+    if (pendingItemChangeRef.current?.hasChange) {
+      trackEvent({ eventType: "item_change", projectId: project.id });
+    }
+
+    pendingItemChangeRef.current = null;
+  };
+
   // Selection changes away from the quick-add session's parent (clicking
   // another Tree row, deselecting, multi-selecting, etc.) close out the
   // session the same way clicking "완료" would, so it never gets silently
@@ -906,11 +928,20 @@ export default function Home() {
   const selectOnly = (itemId: string) => {
     if (isQuickAddingChildren) finishQuickAddChildren();
 
+    // Re-selecting the item that's already the pending Detail Panel session
+    // keeps that session open instead of flushing+restarting it.
+    if (pendingItemChangeRef.current?.itemId !== itemId) {
+      flushPendingItemChange();
+      pendingItemChangeRef.current = { itemId, hasChange: false };
+    }
+
     setSelectedItemIds(new Set([itemId]));
   };
 
   const toggleMultiSelect = (itemId: string) => {
     if (isQuickAddingChildren) finishQuickAddChildren();
+
+    flushPendingItemChange();
 
     setSelectedItemIds((currentIds) => {
       const nextIds = new Set(currentIds);
@@ -927,6 +958,8 @@ export default function Home() {
 
   const clearSelection = () => {
     if (isQuickAddingChildren) finishQuickAddChildren();
+
+    flushPendingItemChange();
 
     setSelectedItemIds(new Set());
   };
@@ -958,6 +991,16 @@ export default function Home() {
     null
   );
 
+  // Analytics: fires project_open once per distinct project id becoming the
+  // active project (dedup via lastOpenedProjectIdRef). Safe to call from
+  // anywhere a project switch happens.
+  const trackProjectOpen = (projectId: string) => {
+    if (lastOpenedProjectIdRef.current === projectId) return;
+
+    lastOpenedProjectIdRef.current = projectId;
+    trackEvent({ eventType: "project_open", projectId });
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -967,6 +1010,7 @@ export default function Home() {
 
         if (loaded) {
           resetProjectHistory(loaded);
+          trackProjectOpen(loaded.id);
           return;
         }
 
@@ -975,6 +1019,8 @@ export default function Home() {
         // current project going forward.
         saveProject(project).catch(() => {});
         setCurrentProjectId(project.id).catch(() => {});
+        trackEvent({ eventType: "project_create", projectId: project.id });
+        trackProjectOpen(project.id);
       })
       .catch(() => {
         // IndexedDB unavailable (e.g. private browsing) — keep the default project.
@@ -1048,6 +1094,10 @@ export default function Home() {
         commitHistory(snapshot);
         colorPickerSnapshotRef.current = null;
       }
+
+      if (pendingItemChangeRef.current) {
+        pendingItemChangeRef.current.hasChange = true;
+      }
     };
 
     input.addEventListener("change", handleChange);
@@ -1061,6 +1111,10 @@ export default function Home() {
     if (guideCloseTimeoutRef.current) {
       clearTimeout(guideCloseTimeoutRef.current);
       guideCloseTimeoutRef.current = null;
+    }
+
+    if (!isGuideOpen) {
+      trackEvent({ eventType: "help_open", projectId: project.id });
     }
 
     setIsGuideClosing(false);
@@ -1243,6 +1297,7 @@ export default function Home() {
     }
 
     selectOnly(newWorkItem.id);
+    trackEvent({ eventType: "item_add", projectId: project.id });
   };
 
   // Quick-add: lets the user create several sub-items by name only (no
@@ -1305,6 +1360,7 @@ export default function Home() {
     ]);
     setQuickAddName("");
     quickAddInputRef.current?.focus();
+    trackEvent({ eventType: "item_add", projectId: project.id });
   };
 
   const removeQuickAddItem = (itemId: string) => {
@@ -1332,6 +1388,10 @@ export default function Home() {
           : item
       )
     );
+
+    if (pendingItemChangeRef.current) {
+      pendingItemChangeRef.current.hasChange = true;
+    }
   };
 
   const toggleUndecided = (isUndecided: boolean) => {
@@ -1369,6 +1429,10 @@ export default function Home() {
         return { ...item, isUndecided, autoMemoNote: null };
       })
     );
+
+    if (pendingItemChangeRef.current) {
+      pendingItemChangeRef.current.hasChange = true;
+    }
   };
 
   const requestDeleteWorkItem = () => {
@@ -1407,6 +1471,7 @@ export default function Home() {
     );
     clearSelection();
     setDeleteConfirmation(null);
+    trackEvent({ eventType: "item_delete", projectId: project.id });
   };
 
   const toggleCollapsedItem = (itemId: string) => {
@@ -1492,6 +1557,8 @@ export default function Home() {
         ? rebalanceSiblingOrders(moved, newParentId)
         : moved;
     });
+
+    trackEvent({ eventType: "item_move", projectId: project.id });
   };
 
   const handleTreeRowPointerDown = (
@@ -1598,6 +1665,7 @@ export default function Home() {
         "@/lib/export/excel-export"
       );
       await exportProjectToExcel(project, collapsedItemIds);
+      trackEvent({ eventType: "project_export", projectId: project.id });
     } catch {
       setExportError("Excel 파일을 내보내는 중 오류가 발생했습니다.");
     } finally {
@@ -1649,12 +1717,20 @@ export default function Home() {
    * untouched in storage (discoverable later via 내 프로젝트), while
    * "덮어쓰기" replaces the current project's record in place.
    */
-  const switchToProject = (nextProject: Project) => {
+  const switchToProject = (
+    nextProject: Project,
+    options?: { isNewProject?: boolean }
+  ) => {
     resetProjectHistory(nextProject);
     setCollapsedItemIds(new Set());
     clearSelection();
     saveProject(nextProject).catch(() => {});
     setCurrentProjectId(nextProject.id).catch(() => {});
+
+    if (options?.isNewProject) {
+      trackEvent({ eventType: "project_create", projectId: nextProject.id });
+    }
+    trackProjectOpen(nextProject.id);
   };
 
   const applyPendingImport = (mode: "new" | "overwrite") => {
@@ -1665,7 +1741,7 @@ export default function Home() {
         ? { ...pendingImport, id: crypto.randomUUID() }
         : { ...pendingImport, id: project.id };
 
-    switchToProject(nextProject);
+    switchToProject(nextProject, { isNewProject: mode === "new" });
     setPendingImport(null);
   };
 
@@ -1684,7 +1760,7 @@ export default function Home() {
   };
 
   const createNewProject = () => {
-    switchToProject(createDefaultProject());
+    switchToProject(createDefaultProject(), { isNewProject: true });
     setIsProjectListOpen(false);
   };
 
@@ -1702,6 +1778,12 @@ export default function Home() {
     setCollapsedItemIds(new Set());
     clearSelection();
     setCurrentProjectId(target.id).catch(() => {});
+    // Reaching here means projectId !== project.id (checked above) and this
+    // is an explicit "내 프로젝트" pick — not the initial load and not a
+    // just-created project auto-opening — so it's a genuine user-initiated
+    // switch between two existing projects.
+    trackEvent({ eventType: "project_switch", projectId: target.id });
+    trackProjectOpen(target.id);
     setIsProjectListOpen(false);
   };
 
@@ -1726,9 +1808,10 @@ export default function Home() {
           setCollapsedItemIds(new Set());
           clearSelection();
           setCurrentProjectId(target.id).catch(() => {});
+          trackProjectOpen(target.id);
         }
       } else {
-        switchToProject(createDefaultProject());
+        switchToProject(createDefaultProject(), { isNewProject: true });
       }
     }
   };
@@ -1857,6 +1940,26 @@ export default function Home() {
         dragSnapshotRef.current = null;
       }
 
+      // Analytics: only counts as a real timeline_move/timeline_resize if a
+      // date actually ended up different from where the drag started (a
+      // plain click on a resize handle, with no movement, sets dragState
+      // but never changes anything).
+      const hasScheduleChange = dragState.originals.some((original) => {
+        const current = workItems.find((item) => item.id === original.itemId);
+        return (
+          current !== undefined &&
+          (current.startDate !== original.startDate ||
+            current.endDate !== original.endDate)
+        );
+      });
+
+      if (hasScheduleChange) {
+        trackEvent({
+          eventType: dragState.action === "move" ? "timeline_move" : "timeline_resize",
+          projectId: project.id,
+        });
+      }
+
       setDragState(null);
       barPressRef.current = null;
       suppressBackgroundClickRef.current = true;
@@ -1935,11 +2038,12 @@ export default function Home() {
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   setDayWidth((width) =>
                     Math.max(MIN_DAY_WIDTH, width - 4)
-                  )
-                }
+                  );
+                  trackEvent({ eventType: "zoom_out", projectId: project.id });
+                }}
                 disabled={dayWidth <= MIN_DAY_WIDTH}
                 className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
                 aria-label="축소"
@@ -1951,11 +2055,12 @@ export default function Home() {
               </span>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   setDayWidth((width) =>
                     Math.min(MAX_DAY_WIDTH, width + 4)
-                  )
-                }
+                  );
+                  trackEvent({ eventType: "zoom_in", projectId: project.id });
+                }}
                 disabled={dayWidth >= MAX_DAY_WIDTH}
                 className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
                 aria-label="확대"

@@ -18,6 +18,7 @@ import {
   validateReviewIssues,
   type ValidatedReviewIssue,
 } from "@/lib/ai/validate-review-issues";
+import { trackEvent } from "@/lib/analytics";
 
 type AiView = "menu" | "fill-schedule" | "review";
 
@@ -84,6 +85,10 @@ export function AiPanel({
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
+    }
+
+    if (!isOpen) {
+      trackEvent({ eventType: "ai_panel_open", projectId: project.id });
     }
 
     setIsClosing(false);
@@ -162,6 +167,7 @@ export function AiPanel({
       if (!response.ok) {
         setScheduleStep("error");
         setScheduleError(friendlyErrorMessage(json?.errorCode));
+        trackEvent({ eventType: "ai_schedule_fail", projectId: project.id });
         return;
       }
 
@@ -170,14 +176,17 @@ export function AiPanel({
       if (validated.applicable.length === 0 && validated.flagged.length === 0) {
         setScheduleStep("error");
         setScheduleError("AI가 제안할 수 있는 일정을 찾지 못했습니다.");
+        trackEvent({ eventType: "ai_schedule_fail", projectId: project.id });
         return;
       }
 
       setScheduleResult(validated);
       setScheduleStep("result");
+      trackEvent({ eventType: "ai_schedule", projectId: project.id });
     } catch {
       setScheduleStep("error");
       setScheduleError("AI 서버에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      trackEvent({ eventType: "ai_schedule_fail", projectId: project.id });
     }
   };
 
@@ -229,6 +238,7 @@ export function AiPanel({
       if (!response.ok) {
         setReviewStatus("error");
         setReviewError(friendlyErrorMessage(json?.errorCode));
+        trackEvent({ eventType: "ai_review_fail", projectId: project.id });
         return;
       }
 
@@ -237,9 +247,11 @@ export function AiPanel({
         [{ ranAt: Date.now(), issues: validated }, ...current].slice(0, REVIEW_HISTORY_LIMIT)
       );
       setReviewStatus("idle");
+      trackEvent({ eventType: "ai_review", projectId: project.id });
     } catch {
       setReviewStatus("error");
       setReviewError("AI 서버에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      trackEvent({ eventType: "ai_review_fail", projectId: project.id });
     }
   };
 
@@ -364,6 +376,7 @@ export function AiPanel({
                   status={reviewStatus}
                   error={reviewError}
                   history={reviewHistory}
+                  projectId={project.id}
                   onBack={() => setView("menu")}
                   onRunNew={runReview}
                   onIssueClick={handleIssueClick}
@@ -718,12 +731,21 @@ type ReviewViewProps = {
   status: ReviewRunStatus;
   error: string | null;
   history: ReviewHistoryEntry[];
+  projectId: string;
   onBack: () => void;
   onRunNew: () => void;
   onIssueClick: (workItemId: string | null) => void;
 };
 
-function ReviewView({ status, error, history, onBack, onRunNew, onIssueClick }: ReviewViewProps) {
+function ReviewView({
+  status,
+  error,
+  history,
+  projectId,
+  onBack,
+  onRunNew,
+  onIssueClick,
+}: ReviewViewProps) {
   const [latest, ...older] = history;
 
   return (
@@ -749,7 +771,17 @@ function ReviewView({ status, error, history, onBack, onRunNew, onIssueClick }: 
       )}
 
       {older.length > 0 && (
-        <details className="mt-3 rounded-lg border border-zinc-200 px-3 py-2 text-xs text-zinc-600">
+        <details
+          className="mt-3 rounded-lg border border-zinc-200 px-3 py-2 text-xs text-zinc-600"
+          onToggle={(event) => {
+            // "이전 검토 기록" is the only existing UI for revisiting an
+            // AI result already shown once — only count opening it, not
+            // the initial display of the latest result and not closing it.
+            if (event.currentTarget.open) {
+              trackEvent({ eventType: "ai_result_reopen", projectId });
+            }
+          }}
+        >
           <summary className="cursor-pointer font-medium text-zinc-700">
             이전 검토 기록 {older.length}건
           </summary>
