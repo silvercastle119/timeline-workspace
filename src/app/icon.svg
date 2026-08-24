@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 -102.55 419.18 419.18">
+  <defs>
+    <linearGradient id="g2" x1="398.12" y1="176.68" x2="398.87" y2="176.68" gradientTransform="translate(-222949.0362 11685.452) scale(560 -66)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1463ff"/>
+      <stop offset=".62" stop-color="#1764f5"/>
+      <stop offset="1" stop-color="#eef3ff"/>
+    </linearGradient>
+    <linearGradient id="g2-2" x1="397.98" y1="177.12" x2="398.72" y2="177.12" gradientTransform="translate(-200936.4387 11795.452) scale(505 -66)" xlink:href="#g2"/>
+    <linearGradient id="g3" x1="397.77" y1="177.52" x2="398.52" y2="177.52" gradientTransform="translate(-176922.696 11905.452) scale(445 -66)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#aeb2ba"/>
+      <stop offset=".65" stop-color="#c9ccd2"/>
+      <stop offset="1" stop-color="#f4f4f5"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#g2)" d="M24.7,0h369.78c13.64,0,24.7,11.06,24.7,24.7h0c0,13.64-11.06,24.7-24.7,24.7H24.7C11.06,49.4,0,38.34,0,24.7h0C0,11.06,11.06,0,24.7,0Z"/>
+  <path fill="url(#g2-2)" d="M65.87,81.31h328.61c13.64,0,24.7,10.92,24.7,24.39h0c0,13.47-11.06,24.39-24.7,24.39H65.87c-13.64,0-24.7-10.92-24.7-24.39h0c0-13.47,11.06-24.39,24.7-24.39Z"/>
+  <path fill="url(#g3)" d="M110.78,164.68h283.7c13.64,0,24.7,11.06,24.7,24.7h0c0,13.64-11.06,24.7-24.7,24.7H110.78c-13.64,0-24.7-11.06-24.7-24.7h0c0-13.64,11.06-24.7,24.7-24.7Z"/>
+</svg>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_레이어_2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 878.9 233.3">
+  <!-- Generator: Adobe Illustrator 30.7.0, SVG Export Plug-In . SVG Version: 2.1.4 Build 114)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #1261ff;
+      }
+
+      .st0, .st1, .st2, .st3 {
+        isolation: isolate;
+      }
+
+      .st0, .st1, .st3 {
+        font-family: Arial-BoldMT, Arial;
+        font-size: 113px;
+        font-weight: 700;
+      }
+
+      .st4 {
+        fill: url(#_무제_그라디언트);
+      }
+
+      .st1 {
+        fill: #11151c;
+      }
+
+      .st5 {
+        fill: url(#_무제_그라디언트_2);
+      }
+
+      .st6 {
+        fill: url(#_무제_그라디언트_3);
+      }
+    </style>
+    <linearGradient id="_무제_그라디언트" data-name="무제 그라디언트" x1="1522.1" y1="-43.5" x2="1522.8" y2="-43.5" gradientTransform="translate(-852383 2894.1529) scale(560 66)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1463ff"/>
+      <stop offset=".6" stop-color="#1764f5"/>
+      <stop offset="1" stop-color="#eef3ff"/>
+    </linearGradient>
+    <linearGradient id="_무제_그라디언트_2" data-name="무제 그라디언트 2" x1="1521.7" y1="-43.9" x2="1522.5" y2="-43.9" gradientTransform="translate(-768440.4375 3004.1529) scale(505 66)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1463ff"/>
+      <stop offset=".6" stop-color="#1764f5"/>
+      <stop offset="1" stop-color="#eef3ff"/>
+    </linearGradient>
+    <linearGradient id="_무제_그라디언트_3" data-name="무제 그라디언트 3" x1="1521.2" y1="-44.3" x2="1522" y2="-44.3" gradientTransform="translate(-676866.6875 3114.1529) scale(445 66)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#aeb2ba"/>
+      <stop offset=".7" stop-color="#c9ccd2"/>
+      <stop offset="1" stop-color="#f4f4f5"/>
+    </linearGradient>
+  </defs>
+  <g id="_레이어_1-2">
+    <g>
+      <g>
+        <path class="st4" d="M24.7,0h369.8C408.1,0,419.2,11.1,419.2,24.7h0c0,13.6-11.1,24.7-24.7,24.7H24.7C11.1,49.4,0,38.3,0,24.7h0C0,11.1,11.1,0,24.7,0Z"/>
+        <path class="st5" d="M65.9,81.3h328.6c13.6,0,24.7,10.9,24.7,24.4h0c0,13.5-11.1,24.4-24.7,24.4H65.9c-13.6,0-24.7-10.9-24.7-24.4h0c0-13.5,11.1-24.4,24.7-24.4Z"/>
+        <path class="st6" d="M110.8,164.7h283.7c13.6,0,24.7,11.1,24.7,24.7h0c0,13.6-11.1,24.7-24.7,24.7H110.8c-13.6,0-24.7-11.1-24.7-24.7h0c0-13.6,11.1-24.7,24.7-24.7Z"/>
+      </g>
+      <g>
+        <g>
+          <g class="st2">
+            <g class="st2">
+              <g class="st2">
+                <text class="st1" transform="translate(462.8 102.8)"><tspan x="0" y="0">T</tspan></text>
+              </g>
+            </g>
+            <g class="st2">
+              <g class="st2">
+                <text class="st1" transform="translate(532.7 102.8)"><tspan x="0" y="0" xml:space="preserve">O  </tspan></text>
+              </g>
+              <g class="st2">
+                <text class="st1" transform="translate(700 103)"><tspan x="0" y="0">DO</tspan></text>
+              </g>
+            </g>
+          </g>
+          <g class="st2">
+            <g class="st2">
+              <g class="st2">
+                <text class="st0" transform="translate(445.0957 200.2003) scale(4.0291 1)"><tspan x="0" y="0">-</tspan></text>
+              </g>
+            </g>
+          </g>
+          <g class="st2">
+            <g class="st2">
+              <g class="st2">
+                <text class="st3" transform="translate(608.8 210)"><tspan x="0" y="0">LINE</tspan></text>
+              </g>
+            </g>
+          </g>
+        </g>
+        <g class="st2">
+          <g class="st2">
+            <g class="st2">
+              <text class="st1" transform="translate(628.7 93) scale(1.6 1)"><tspan x="0" y="0">-</tspan></text>
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
