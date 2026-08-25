@@ -6,7 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 // Preview model per Google's official model list (ai.google.dev/gemini-api/docs/models).
 // Kept as a single constant so swapping to a future GA release is a one-line change.
 const MODEL_ID = "gemini-3-flash-preview";
-const REQUEST_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 55_000;
 
 export type StructuredGenerationInput = {
   systemInstruction: string;

@@ -32,11 +32,14 @@ export type AnalyticsEventType =
   // UI
   | "help_open"
   | "zoom_in"
-  | "zoom_out";
+  | "zoom_out"
+  // FEEDBACK
+  | "feedback_open"
+  | "feedback_submit";
 
 let supabaseClient: SupabaseClient | null | undefined;
 
-function getSupabaseClient(): SupabaseClient | null {
+export function getSupabaseClient(): SupabaseClient | null {
   if (supabaseClient !== undefined) return supabaseClient;
 
   try {
@@ -53,7 +56,7 @@ function getSupabaseClient(): SupabaseClient | null {
 }
 
 /** Reads (or creates on first visit) this browser's anonymous id. No PII involved — a random UUID stored in localStorage. */
-function getAnonymousUserId(): string | null {
+export function getAnonymousUserId(): string | null {
   try {
     if (typeof window === "undefined") return null;
 
@@ -70,7 +73,7 @@ function getAnonymousUserId(): string | null {
 }
 
 /** Reads (or creates on first use this tab) this tab's session id, stored in sessionStorage so a new tab/session gets a fresh id. */
-function getSessionId(): string | null {
+export function getSessionId(): string | null {
   try {
     if (typeof window === "undefined") return null;
 

@@ -9,6 +9,11 @@ import {
 
 const MAX_WORK_ITEMS = 500;
 
+// Give Gemini room to respond before Vercel kills the function — must stay
+// above gemini-client's own REQUEST_TIMEOUT_MS or that timeout never gets
+// the chance to return its (nicer) error response.
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   let body: unknown;
 

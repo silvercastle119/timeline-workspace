@@ -48,6 +48,10 @@ import {
 import type { Project, WorkItem } from "@/types/project";
 import { AiPanel } from "@/components/ai/ai-panel";
 import { trackEvent } from "@/lib/analytics";
+import { SatisfactionSurveyModal } from "@/components/survey/satisfaction-survey-modal";
+import { canShowSurvey } from "@/lib/survey/survey-visibility";
+import { MobileOptimizedNotice } from "@/components/mobile/mobile-optimized-notice";
+import { FeedbackReportModal } from "@/components/feedback/feedback-report-modal";
 
 const DEFAULT_DAY_WIDTH = 40;
 const MIN_DAY_WIDTH = 20;
@@ -870,6 +874,15 @@ export default function Home() {
     null
   );
   const guideSectionRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  // Opens SatisfactionSurvey after a meaningful trigger (AI success + panel
+  // close, Excel import/export success) — but only if the re-show cooldown
+  // has elapsed, and never twice for one trigger (dedupe via the functional
+  // update: if it's already open, this is a no-op).
+  const maybeShowSurvey = useCallback(() => {
+    setIsSurveyOpen((current) => current || canShowSurvey());
+  }, []);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isProjectListOpen, setIsProjectListOpen] = useState(false);
   const [isLoadingProjectList, setIsLoadingProjectList] = useState(false);
   const [projectSummaries, setProjectSummaries] = useState<
@@ -1666,6 +1679,7 @@ export default function Home() {
       );
       await exportProjectToExcel(project, collapsedItemIds);
       trackEvent({ eventType: "project_export", projectId: project.id });
+      maybeShowSurvey();
     } catch {
       setExportError("Excel 파일을 내보내는 중 오류가 발생했습니다.");
     } finally {
@@ -1743,6 +1757,7 @@ export default function Home() {
 
     switchToProject(nextProject, { isNewProject: mode === "new" });
     setPendingImport(null);
+    maybeShowSurvey();
   };
 
   const refreshProjectList = () => {
@@ -2124,6 +2139,32 @@ export default function Home() {
               {saveStatus === "saving" ? "저장 중..." : "저장됨"}
             </div>
           </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              trackEvent({ eventType: "feedback_open", projectId: project.id });
+              setIsFeedbackOpen(true);
+            }}
+            className="-translate-y-[10px] flex items-center gap-1 text-xs font-medium text-zinc-400 transition hover:text-zinc-600"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+              <line x1="4" y1="22" x2="4" y2="15" />
+            </svg>
+            오류 신고 · 개선 제안
+          </button>
         </div>
 
         <div className="min-w-0 space-y-1.5">
@@ -2864,6 +2905,19 @@ export default function Home() {
         updateWorkItems={updateWorkItems}
         onJumpToWorkItem={jumpToWorkItem}
         isDetailPanelOpen={Boolean(selectedItem)}
+        onSignificantSuccess={maybeShowSurvey}
+      />
+
+      <SatisfactionSurveyModal
+        isOpen={isSurveyOpen}
+        onClose={() => setIsSurveyOpen(false)}
+        projectId={project.id}
+      />
+
+      <FeedbackReportModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        projectId={project.id}
       />
 
       <button
@@ -3259,6 +3313,8 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <MobileOptimizedNotice />
     </main>
   );
 }
