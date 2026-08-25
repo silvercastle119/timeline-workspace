@@ -50,6 +50,7 @@ import { AiPanel } from "@/components/ai/ai-panel";
 import { trackEvent } from "@/lib/analytics";
 import { SatisfactionSurveyModal } from "@/components/survey/satisfaction-survey-modal";
 import { canShowSurvey } from "@/lib/survey/survey-visibility";
+import { MobileOptimizedNotice } from "@/components/mobile/mobile-optimized-notice";
 
 const DEFAULT_DAY_WIDTH = 40;
 const MIN_DAY_WIDTH = 20;
@@ -3278,6 +3279,8 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <MobileOptimizedNotice />
     </main>
   );
 }
