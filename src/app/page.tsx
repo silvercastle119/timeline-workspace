@@ -51,6 +51,7 @@ import { trackEvent } from "@/lib/analytics";
 import { SatisfactionSurveyModal } from "@/components/survey/satisfaction-survey-modal";
 import { canShowSurvey } from "@/lib/survey/survey-visibility";
 import { MobileOptimizedNotice } from "@/components/mobile/mobile-optimized-notice";
+import { FeedbackReportModal } from "@/components/feedback/feedback-report-modal";
 
 const DEFAULT_DAY_WIDTH = 40;
 const MIN_DAY_WIDTH = 20;
@@ -881,6 +882,7 @@ export default function Home() {
   const maybeShowSurvey = useCallback(() => {
     setIsSurveyOpen((current) => current || canShowSurvey());
   }, []);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isProjectListOpen, setIsProjectListOpen] = useState(false);
   const [isLoadingProjectList, setIsLoadingProjectList] = useState(false);
   const [projectSummaries, setProjectSummaries] = useState<
@@ -2139,6 +2141,32 @@ export default function Home() {
           </div>
         </div>
 
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              trackEvent({ eventType: "feedback_open", projectId: project.id });
+              setIsFeedbackOpen(true);
+            }}
+            className="-translate-y-[10px] flex items-center gap-1 text-xs font-medium text-zinc-400 transition hover:text-zinc-600"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+              <line x1="4" y1="22" x2="4" y2="15" />
+            </svg>
+            오류 신고 · 개선 제안
+          </button>
+        </div>
+
         <div className="min-w-0 space-y-1.5">
           {isEditingProjectName ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -2883,6 +2911,12 @@ export default function Home() {
       <SatisfactionSurveyModal
         isOpen={isSurveyOpen}
         onClose={() => setIsSurveyOpen(false)}
+        projectId={project.id}
+      />
+
+      <FeedbackReportModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
         projectId={project.id}
       />
 

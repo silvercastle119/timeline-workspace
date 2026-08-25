@@ -32,7 +32,10 @@ export type AnalyticsEventType =
   // UI
   | "help_open"
   | "zoom_in"
-  | "zoom_out";
+  | "zoom_out"
+  // FEEDBACK
+  | "feedback_open"
+  | "feedback_submit";
 
 let supabaseClient: SupabaseClient | null | undefined;
 

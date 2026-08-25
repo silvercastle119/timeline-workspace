@@ -334,8 +334,8 @@ export function AiPanel({
                   <p className="text-sm leading-relaxed text-zinc-600">
                     TO-DO-LINE의 프로젝트 데이터를 바탕으로 AI의 도움을 받아
                     일정을 작성하고 프로젝트를 검토할 수 있습니다. AI 처리를
-                    위해 현재 프로젝트의 업무 구조와 일정 정보가 Google
-                    Gemini API로 전송됩니다.
+                    위해 현재 프로젝트의 업무 구조와 일정 정보가 외부 LLM으로
+                    전송됩니다.
                   </p>
 
                   <button
