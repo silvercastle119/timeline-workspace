@@ -10,6 +10,11 @@ import {
 
 const MAX_WORK_ITEMS = 500;
 
+// Give Gemini room to respond before Vercel kills the function — must stay
+// above gemini-client's own REQUEST_TIMEOUT_MS or that timeout never gets
+// the chance to return its (nicer) error response.
+export const maxDuration = 60;
+
 // Beta: no per-project rate limit yet. When one is added (e.g. N requests
 // per project per day), this is the place to check it before calling Gemini.
 export async function POST(request: Request) {
