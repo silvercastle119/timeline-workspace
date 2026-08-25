@@ -2016,17 +2016,17 @@ export default function Home() {
     <main className="flex h-screen min-h-0 flex-col bg-white text-zinc-900">
       {/* Header */}
       <header className="flex shrink-0 flex-col gap-5 border-b border-zinc-200 px-4 py-4">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 md:flex-nowrap">
           <Image
             src="/logo.svg"
             alt="TO-DO-LINE"
             width={111}
             height={32}
             priority
-            className="h-8 w-auto"
+            className="h-8 w-auto shrink-0"
           />
 
-          <div className="flex shrink-0 items-center gap-4">
+          <div className="flex w-full flex-wrap items-center gap-4 md:w-auto md:flex-nowrap md:shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -2298,7 +2298,7 @@ export default function Home() {
 
       {/* Workspace */}
       <div
-        className={`flex min-h-0 flex-1 pl-4 ${
+        className={`flex min-h-0 min-w-0 flex-1 overflow-x-auto pl-4 [-webkit-overflow-scrolling:touch] ${
           selectedItem ? "" : "pr-4"
         }`}
       >
@@ -2389,7 +2389,7 @@ export default function Home() {
         </section>
 
         {/* Timeline */}
-        <section className="flex min-w-0 flex-1 flex-col">
+        <section className="flex min-w-[240px] flex-1 flex-col">
           <div className="flex-1 overflow-auto">
             <div
               className="min-w-max"
@@ -2924,8 +2924,8 @@ export default function Home() {
         type="button"
         onClick={openGuide}
         aria-label="사용법 보기"
-        className={`fixed bottom-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white shadow-lg transition-[right,transform] duration-200 ease-out hover:bg-blue-700 active:scale-90 ${
-          selectedItem ? "right-[344px]" : "right-6"
+        className={`fixed bottom-6 right-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white shadow-lg transition-[right,transform] duration-200 ease-out hover:bg-blue-700 active:scale-90 ${
+          selectedItem ? "md:right-[344px]" : ""
         }`}
       >
         ?
