@@ -282,8 +282,8 @@ export function AiPanel({
         type="button"
         onClick={openPanel}
         aria-label="AI 기능 (베타)"
-        className={`fixed bottom-20 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-base font-semibold text-white shadow-lg transition-[right,transform] duration-200 ease-out hover:bg-violet-700 active:scale-90 ${
-          isDetailPanelOpen ? "right-[344px]" : "right-6"
+        className={`fixed bottom-20 right-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-base font-semibold text-white shadow-lg transition-[right,transform] duration-200 ease-out hover:bg-violet-700 active:scale-90 ${
+          isDetailPanelOpen ? "md:right-[344px]" : ""
         }`}
       >
         ✨
