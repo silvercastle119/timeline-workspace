@@ -44,6 +44,10 @@ type AiPanelProps = {
   updateWorkItems: (updater: (items: WorkItem[]) => WorkItem[]) => void;
   onJumpToWorkItem: (id: string) => void;
   isDetailPanelOpen: boolean;
+  // Called once when the panel is closed after at least one successful AI
+  // run (schedule fill or review) happened during this open session — never
+  // for a panel opened-then-closed with no run, or one that only failed.
+  onSignificantSuccess: () => void;
 };
 
 export function AiPanel({
@@ -51,6 +55,7 @@ export function AiPanel({
   updateWorkItems,
   onJumpToWorkItem,
   isDetailPanelOpen,
+  onSignificantSuccess,
 }: AiPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -69,6 +74,9 @@ export function AiPanel({
   const [reviewHistory, setReviewHistory] = useState<ReviewHistoryEntry[]>([]);
 
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set on a successful schedule-fill or review run, consumed (and reset)
+  // the next time the panel actually closes — see closePanel().
+  const pendingSuccessRef = useRef(false);
 
   const resetFeatureState = () => {
     setView("menu");
@@ -102,8 +110,13 @@ export function AiPanel({
       setIsClosing(false);
       closeTimeoutRef.current = null;
       resetFeatureState();
+
+      if (pendingSuccessRef.current) {
+        pendingSuccessRef.current = false;
+        onSignificantSuccess();
+      }
     }, PANEL_CLOSE_ANIMATION_MS);
-  }, []);
+  }, [onSignificantSuccess]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -183,6 +196,7 @@ export function AiPanel({
       setScheduleResult(validated);
       setScheduleStep("result");
       trackEvent({ eventType: "ai_schedule", projectId: project.id });
+      pendingSuccessRef.current = true;
     } catch {
       setScheduleStep("error");
       setScheduleError("AI 서버에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
@@ -248,6 +262,7 @@ export function AiPanel({
       );
       setReviewStatus("idle");
       trackEvent({ eventType: "ai_review", projectId: project.id });
+      pendingSuccessRef.current = true;
     } catch {
       setReviewStatus("error");
       setReviewError("AI 서버에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");

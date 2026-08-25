@@ -48,6 +48,8 @@ import {
 import type { Project, WorkItem } from "@/types/project";
 import { AiPanel } from "@/components/ai/ai-panel";
 import { trackEvent } from "@/lib/analytics";
+import { SatisfactionSurveyModal } from "@/components/survey/satisfaction-survey-modal";
+import { canShowSurvey } from "@/lib/survey/survey-visibility";
 
 const DEFAULT_DAY_WIDTH = 40;
 const MIN_DAY_WIDTH = 20;
@@ -870,6 +872,14 @@ export default function Home() {
     null
   );
   const guideSectionRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  // Opens SatisfactionSurvey after a meaningful trigger (AI success + panel
+  // close, Excel import/export success) — but only if the re-show cooldown
+  // has elapsed, and never twice for one trigger (dedupe via the functional
+  // update: if it's already open, this is a no-op).
+  const maybeShowSurvey = useCallback(() => {
+    setIsSurveyOpen((current) => current || canShowSurvey());
+  }, []);
   const [isProjectListOpen, setIsProjectListOpen] = useState(false);
   const [isLoadingProjectList, setIsLoadingProjectList] = useState(false);
   const [projectSummaries, setProjectSummaries] = useState<
@@ -1666,6 +1676,7 @@ export default function Home() {
       );
       await exportProjectToExcel(project, collapsedItemIds);
       trackEvent({ eventType: "project_export", projectId: project.id });
+      maybeShowSurvey();
     } catch {
       setExportError("Excel 파일을 내보내는 중 오류가 발생했습니다.");
     } finally {
@@ -1743,6 +1754,7 @@ export default function Home() {
 
     switchToProject(nextProject, { isNewProject: mode === "new" });
     setPendingImport(null);
+    maybeShowSurvey();
   };
 
   const refreshProjectList = () => {
@@ -2864,6 +2876,13 @@ export default function Home() {
         updateWorkItems={updateWorkItems}
         onJumpToWorkItem={jumpToWorkItem}
         isDetailPanelOpen={Boolean(selectedItem)}
+        onSignificantSuccess={maybeShowSurvey}
+      />
+
+      <SatisfactionSurveyModal
+        isOpen={isSurveyOpen}
+        onClose={() => setIsSurveyOpen(false)}
+        projectId={project.id}
       />
 
       <button
