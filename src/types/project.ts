@@ -9,6 +9,12 @@ export type WorkItemPriority =
   | "medium"
   | "high";
 
+export type Checkpoint = {
+  id: string;
+  date: string;
+  label: string;
+};
+
 export type WorkItem = {
   id: string;
   name: string;
@@ -25,6 +31,7 @@ export type WorkItem = {
   color: string | null;
   memo: string;
   autoMemoNote: string | null;
+  checkpoints: Checkpoint[];
 
   /** @deprecated 더 이상 UI/Excel에서 사용하지 않음. 기존 데이터 호환을 위해서만 유지 */
   assignee: string;

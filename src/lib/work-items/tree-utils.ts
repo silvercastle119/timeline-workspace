@@ -1,6 +1,6 @@
 import { getDatesInRange } from "@/lib/timeline/date-utils";
 import { DEFAULT_BAR_COLOR, blendColors } from "@/lib/work-items/color-utils";
-import type { WorkItem } from "@/types/project";
+import type { Checkpoint, WorkItem } from "@/types/project";
 
 export type WorkItemTimeline = {
   startDate: string;
@@ -67,6 +67,7 @@ export function createWorkItem(input: {
     color: null,
     memo: "",
     autoMemoNote: null,
+    checkpoints: [],
     assignee: "",
     status: "planned",
     priority: "medium",
@@ -155,6 +156,7 @@ export function normalizeWorkItem(
     color: raw.color ?? null,
     memo: raw.memo ?? "",
     autoMemoNote: raw.autoMemoNote ?? null,
+    checkpoints: Array.isArray(raw.checkpoints) ? raw.checkpoints : [],
     assignee: raw.assignee ?? "",
     status: raw.status ?? "planned",
     priority: raw.priority ?? "medium",
@@ -215,6 +217,31 @@ export function sanitizeAutoTimelineFlags(workItems: WorkItem[]): WorkItem[] {
     item.autoTimeline && !parentIds.has(item.id)
       ? { ...item, autoTimeline: false }
       : item
+  );
+}
+
+export function isDateWithinRange(
+  date: string,
+  startDate: string,
+  endDate: string
+): boolean {
+  return date >= startDate && date <= endDate;
+}
+
+/**
+ * Drops any checkpoint whose date no longer falls within the item's own
+ * [startDate, endDate] — called whenever those dates shrink (a direct edit
+ * or a resize-drag commit), never on a pure move (which preserves duration).
+ */
+export function clampCheckpointsToRange(
+  checkpoints: Checkpoint[],
+  startDate: string | null,
+  endDate: string | null
+): Checkpoint[] {
+  if (!startDate || !endDate) return [];
+
+  return checkpoints.filter((checkpoint) =>
+    isDateWithinRange(checkpoint.date, startDate, endDate)
   );
 }
 

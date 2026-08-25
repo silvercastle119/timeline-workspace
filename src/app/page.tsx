@@ -29,8 +29,10 @@ import {
 import {
   DEFAULT_BAR_COLOR,
   DEFAULT_COLOR_PALETTE,
+  darkenColor,
 } from "@/lib/work-items/color-utils";
 import {
+  clampCheckpointsToRange,
   computeSiblingOrder,
   createWorkItem,
   getAggregateColorSegments,
@@ -45,7 +47,8 @@ import {
   sanitizeAutoTimelineFlags,
   type WorkItemTimeline,
 } from "@/lib/work-items/tree-utils";
-import type { Project, WorkItem } from "@/types/project";
+import type { Checkpoint, Project, WorkItem } from "@/types/project";
+import type { ImportDiff, ImportDiffEntry } from "@/lib/export/excel-import";
 import { AiPanel } from "@/components/ai/ai-panel";
 import { trackEvent } from "@/lib/analytics";
 import { SatisfactionSurveyModal } from "@/components/survey/satisfaction-survey-modal";
@@ -736,6 +739,7 @@ type BarDragOriginal = {
   itemId: string;
   startDate: string;
   endDate: string;
+  checkpoints: Checkpoint[];
 };
 
 type BarDragState = {
@@ -867,6 +871,8 @@ export default function Home() {
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<Project | null>(null);
+  const [pendingImportDiff, setPendingImportDiff] = useState<ImportDiff | null>(null);
+  const [isOverwritePreviewOpen, setIsOverwritePreviewOpen] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isGuideClosing, setIsGuideClosing] = useState(false);
@@ -1392,14 +1398,24 @@ export default function Home() {
     if (!selectedItemId) return;
 
     updateWorkItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === selectedItemId
-          ? {
-              ...item,
-              [field]: value,
-            }
-          : item
-      )
+      currentItems.map((item) => {
+        if (item.id !== selectedItemId) return item;
+
+        const updated = { ...item, [field]: value };
+
+        // A direct startDate/endDate edit only shrinks/grows the range — it
+        // never shifts it — so checkpoints stay put and only get dropped if
+        // they now fall outside the new range (see plan issue #6, case 2/3).
+        if (field === "startDate" || field === "endDate") {
+          updated.checkpoints = clampCheckpointsToRange(
+            updated.checkpoints,
+            updated.startDate,
+            updated.endDate
+          );
+        }
+
+        return updated;
+      })
     );
 
     if (pendingItemChangeRef.current) {
@@ -1446,6 +1462,97 @@ export default function Home() {
     if (pendingItemChangeRef.current) {
       pendingItemChangeRef.current.hasChange = true;
     }
+  };
+
+  const addCheckpoint = () => {
+    if (!selectedItemId || !selectedItem?.startDate || !selectedItem?.endDate) {
+      return;
+    }
+
+    const newCheckpoint: Checkpoint = {
+      id: crypto.randomUUID(),
+      date: selectedItem.startDate,
+      label: "",
+    };
+
+    updateWorkItems((currentItems) =>
+      currentItems.map((item) =>
+        item.id === selectedItemId
+          ? { ...item, checkpoints: [...item.checkpoints, newCheckpoint] }
+          : item
+      )
+    );
+
+    if (pendingItemChangeRef.current) {
+      pendingItemChangeRef.current.hasChange = true;
+    }
+
+    trackEvent({ eventType: "checkpoint_add", projectId: project.id });
+  };
+
+  const updateCheckpoint = (
+    checkpointId: string,
+    field: "date" | "label",
+    value: string
+  ) => {
+    if (!selectedItemId) return;
+
+    updateWorkItems((currentItems) =>
+      currentItems.map((item) => {
+        if (item.id !== selectedItemId) return item;
+
+        return {
+          ...item,
+          checkpoints: item.checkpoints.map((checkpoint) => {
+            if (checkpoint.id !== checkpointId) return checkpoint;
+
+            if (field === "date" && item.startDate && item.endDate) {
+              // Always clamp into the parent's own range — the date input's
+              // min/max attributes are advisory only and don't stop a typed
+              // out-of-range value, so this keeps the panel and the
+              // Timeline bar's own render-time filter from ever disagreeing.
+              const clampedDate =
+                value < item.startDate
+                  ? item.startDate
+                  : value > item.endDate
+                    ? item.endDate
+                    : value;
+
+              return { ...checkpoint, date: clampedDate };
+            }
+
+            return { ...checkpoint, [field]: value };
+          }),
+        };
+      })
+    );
+
+    if (pendingItemChangeRef.current) {
+      pendingItemChangeRef.current.hasChange = true;
+    }
+  };
+
+  const deleteCheckpoint = (checkpointId: string) => {
+    if (!selectedItemId) return;
+
+    updateWorkItems((currentItems) =>
+      currentItems.map((item) =>
+        item.id === selectedItemId
+          ? {
+              ...item,
+              checkpoints: item.checkpoints.filter(
+                (checkpoint) => checkpoint.id !== checkpointId
+              ),
+            }
+          : item
+      )
+    );
+
+    if (pendingItemChangeRef.current) {
+      pendingItemChangeRef.current.hasChange = true;
+    }
+
+    trackEvent({ eventType: "checkpoint_delete", projectId: project.id });
   };
 
   const requestDeleteWorkItem = () => {
@@ -1677,7 +1784,7 @@ export default function Home() {
       const { exportProjectToExcel } = await import(
         "@/lib/export/excel-export"
       );
-      await exportProjectToExcel(project, collapsedItemIds);
+      await exportProjectToExcel(project);
       trackEvent({ eventType: "project_export", projectId: project.id });
       maybeShowSurvey();
     } catch {
@@ -1700,8 +1807,12 @@ export default function Home() {
     setImportError(null);
 
     try {
-      const { parseExcelToProject, ExcelImportError, MAX_IMPORT_FILE_SIZE_BYTES } =
-        await import("@/lib/export/excel-import");
+      const {
+        parseExcelToProject,
+        computeImportDiff,
+        ExcelImportError,
+        MAX_IMPORT_FILE_SIZE_BYTES,
+      } = await import("@/lib/export/excel-import");
 
       if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
         throw new ExcelImportError(
@@ -1710,9 +1821,10 @@ export default function Home() {
       }
 
       const buffer = await file.arrayBuffer();
-      const imported = await parseExcelToProject(buffer);
+      const imported = await parseExcelToProject(buffer, project);
 
       setPendingImport(imported);
+      setPendingImportDiff(computeImportDiff(project, imported));
     } catch (error) {
       setImportError(
         error instanceof Error && error.name === "ExcelImportError"
@@ -1757,7 +1869,74 @@ export default function Home() {
 
     switchToProject(nextProject, { isNewProject: mode === "new" });
     setPendingImport(null);
+    setPendingImportDiff(null);
+    setIsOverwritePreviewOpen(false);
     maybeShowSurvey();
+  };
+
+  const cancelPendingImport = () => {
+    setPendingImport(null);
+    setPendingImportDiff(null);
+    setIsOverwritePreviewOpen(false);
+  };
+
+  // "덮어쓰기" replaces the whole project, so anything in the current
+  // project that isn't in the file would otherwise vanish silently. If the
+  // diff shows any actual change, require the user to see exactly what's
+  // being added/modified/deleted first; a no-op re-import (identical file)
+  // skips straight to applying since there's nothing to warn about.
+  const handleOverwriteImportClick = () => {
+    const diff = pendingImportDiff;
+    const hasChanges =
+      diff &&
+      (diff.workItems.added.length > 0 ||
+        diff.workItems.modified.length > 0 ||
+        diff.workItems.deleted.length > 0 ||
+        diff.checkpoints.added.length > 0 ||
+        diff.checkpoints.modified.length > 0 ||
+        diff.checkpoints.deleted.length > 0);
+
+    if (hasChanges) {
+      setIsOverwritePreviewOpen(true);
+    } else {
+      applyPendingImport("overwrite");
+    }
+  };
+
+  const renderDiffEntryList = (
+    label: string,
+    entries: ImportDiffEntry[],
+    tone: "add" | "modify" | "delete"
+  ) => {
+    if (entries.length === 0) return null;
+
+    const toneClass =
+      tone === "add"
+        ? "text-blue-600"
+        : tone === "modify"
+          ? "text-amber-600"
+          : "text-red-600";
+    const maxVisible = 8;
+    const visible = entries.slice(0, maxVisible);
+    const remaining = entries.length - visible.length;
+
+    return (
+      <div>
+        <p className={`text-xs font-semibold ${toneClass}`}>
+          {label} {entries.length}개
+        </p>
+        <ul className="mt-1 space-y-0.5 pl-3 text-xs text-zinc-600">
+          {visible.map((entry) => (
+            <li key={entry.id} className="truncate">
+              · {entry.name || "(이름 없음)"}
+            </li>
+          ))}
+          {remaining > 0 && (
+            <li className="text-zinc-400">외 {remaining}개</li>
+          )}
+        </ul>
+      </div>
+    );
   };
 
   const refreshProjectList = () => {
@@ -1875,6 +2054,7 @@ export default function Home() {
         itemId: groupItem.id,
         startDate: groupItem.startDate as string,
         endDate: groupItem.endDate as string,
+        checkpoints: groupItem.checkpoints,
       })),
     });
   };
@@ -1894,9 +2074,40 @@ export default function Home() {
       currentItems.map((currentItem) => {
         const update = updates.get(currentItem.id);
 
-        return update
-          ? { ...currentItem, startDate: update.startDate, endDate: update.endDate }
-          : currentItem;
+        if (!update) return currentItem;
+
+        // A pure move shifts start/end by the same amount, so checkpoints
+        // (stored as absolute dates) must shift with them or they'd visually
+        // detach from the bar. Resize never reaches this branch — resized
+        // items keep their checkpoints' absolute dates untouched (see
+        // handlePointerUp's post-resize clamp instead).
+        if (state.action === "move") {
+          const original = state.originals.find(
+            (candidate) => candidate.itemId === currentItem.id
+          );
+          // Always recompute from the frozen original snapshot (never from
+          // currentItem, which may still hold a shift from an earlier
+          // pointermove) — otherwise dragging past a day boundary and back
+          // leaves the checkpoint stuck a day off from the bar.
+          const deltaDays = original
+            ? getDaysBetween(original.startDate, update.startDate)
+            : 0;
+          const checkpoints = original
+            ? original.checkpoints.map((checkpoint) => ({
+                ...checkpoint,
+                date: addDays(checkpoint.date, deltaDays),
+              }))
+            : currentItem.checkpoints;
+
+          return {
+            ...currentItem,
+            startDate: update.startDate,
+            endDate: update.endDate,
+            checkpoints,
+          };
+        }
+
+        return { ...currentItem, startDate: update.startDate, endDate: update.endDate };
       })
     );
   };
@@ -1939,6 +2150,7 @@ export default function Home() {
         itemId: groupItem.id,
         startDate: groupItem.startDate as string,
         endDate: groupItem.endDate as string,
+        checkpoints: groupItem.checkpoints,
       })),
     };
 
@@ -1951,6 +2163,31 @@ export default function Home() {
   ) => {
     if (dragState) {
       if (dragSnapshotRef.current) {
+        // Resize can shrink an item's range past a checkpoint's date; move
+        // never can (see applyGroupDrag). Fold this into the same transient
+        // session so it lands inside the one commitHistory undo step below.
+        if (dragState.action !== "move") {
+          updateWorkItemsTransient((currentItems) =>
+            currentItems.map((item) => {
+              const original = dragState.originals.find(
+                (candidate) => candidate.itemId === item.id
+              );
+
+              if (!original || item.checkpoints.length === 0) return item;
+
+              const clamped = clampCheckpointsToRange(
+                item.checkpoints,
+                item.startDate,
+                item.endDate
+              );
+
+              return clamped.length === item.checkpoints.length
+                ? item
+                : { ...item, checkpoints: clamped };
+            })
+          );
+        }
+
         commitHistory(dragSnapshotRef.current);
         dragSnapshotRef.current = null;
       }
@@ -2507,6 +2744,42 @@ export default function Home() {
                       }}
                     >
                       {item.isUndecided ? "일정 미정" : null}
+                      {isInteractive &&
+                        item.checkpoints
+                          .filter(
+                            (checkpoint) =>
+                              checkpoint.date >= effectiveTimeline.startDate &&
+                              checkpoint.date <= effectiveTimeline.endDate
+                          )
+                          .map((checkpoint) => {
+                            const baseColor = item.color ?? DEFAULT_BAR_COLOR;
+                            const showLabel = dayWidth >= 28;
+
+                            return (
+                              <div
+                                key={checkpoint.id}
+                                title={checkpoint.label}
+                                className="pointer-events-none absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-[3px] border-[3px] text-[9px] font-semibold leading-none text-white"
+                                style={{
+                                  left: `${
+                                    getTimelineOffset(
+                                      effectiveTimeline.startDate,
+                                      checkpoint.date
+                                    ) * dayWidth
+                                  }px`,
+                                  width: `${dayWidth}px`,
+                                  backgroundColor: darkenColor(baseColor, 0.22),
+                                  borderColor: darkenColor(baseColor, 0.4),
+                                }}
+                              >
+                                {showLabel && (
+                                  <span className="truncate px-0.5">
+                                    {checkpoint.label}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
                       {isInteractive && (
                         <>
                           <div
@@ -2780,6 +3053,83 @@ export default function Home() {
                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-zinc-100"
                 />
               </label>
+
+              {/* Checkpoints */}
+              <div className="block">
+                <span className="mb-2 block text-xs font-medium text-zinc-500">
+                  체크포인트
+                </span>
+
+                {selectedItem.autoTimeline ||
+                selectedItem.isUndecided ||
+                !selectedItem.startDate ||
+                !selectedItem.endDate ? (
+                  <p className="rounded-md bg-zinc-100 p-3 text-xs text-zinc-500">
+                    시작일/종료일이 지정된 일정에서만 체크포인트를 추가할 수
+                    있습니다.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {[...selectedItem.checkpoints]
+                      .sort((a, b) => a.date.localeCompare(b.date))
+                      .map((checkpoint) => (
+                        <div
+                          key={checkpoint.id}
+                          className="flex items-center gap-2"
+                        >
+                          <input
+                            type="date"
+                            value={checkpoint.date}
+                            min={selectedItem.startDate ?? undefined}
+                            max={selectedItem.endDate ?? undefined}
+                            disabled={isQuickAddingChildren}
+                            onChange={(event) =>
+                              updateCheckpoint(
+                                checkpoint.id,
+                                "date",
+                                event.target.value
+                              )
+                            }
+                            className="w-[136px] rounded-md border border-zinc-300 px-2 py-1.5 text-xs outline-none focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-zinc-100"
+                          />
+                          <input
+                            type="text"
+                            value={checkpoint.label}
+                            maxLength={20}
+                            placeholder="라벨"
+                            disabled={isQuickAddingChildren}
+                            onChange={(event) =>
+                              updateCheckpoint(
+                                checkpoint.id,
+                                "label",
+                                event.target.value
+                              )
+                            }
+                            className="min-w-0 flex-1 rounded-md border border-zinc-300 px-2 py-1.5 text-xs outline-none focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-zinc-100"
+                          />
+                          <button
+                            type="button"
+                            disabled={isQuickAddingChildren}
+                            onClick={() => deleteCheckpoint(checkpoint.id)}
+                            aria-label="체크포인트 삭제"
+                            className="shrink-0 text-xs text-zinc-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      ))}
+
+                    <button
+                      type="button"
+                      disabled={isQuickAddingChildren}
+                      onClick={addCheckpoint}
+                      className="w-full rounded-md border border-dashed border-zinc-300 py-1.5 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      + 체크포인트 추가
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Memo */}
               <label className="block">
@@ -3235,7 +3585,86 @@ export default function Home() {
         </div>
       )}
 
-      {pendingImport && (
+      {pendingImport && isOverwritePreviewOpen && (
+        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
+            <div className="border-b border-zinc-200 p-5 pb-4">
+              <h2 className="text-base font-semibold">덮어쓰기 내용 확인</h2>
+              <p className="mt-2 text-sm text-zinc-600">
+                이 작업은 현재 프로젝트를 Excel 파일 내용으로 교체합니다. 아래
+                항목이 실제로 추가/수정/삭제됩니다 — 특히{" "}
+                <span className="font-semibold text-red-600">
+                  삭제되는 항목은 되돌릴 수 없습니다.
+                </span>
+              </p>
+            </div>
+            <div className="flex-1 space-y-4 overflow-auto p-5">
+              <div>
+                <h3 className="text-xs font-semibold text-zinc-400">
+                  Work Item
+                </h3>
+                <div className="mt-2 space-y-3">
+                  {renderDiffEntryList(
+                    "추가",
+                    pendingImportDiff?.workItems.added ?? [],
+                    "add"
+                  )}
+                  {renderDiffEntryList(
+                    "수정",
+                    pendingImportDiff?.workItems.modified ?? [],
+                    "modify"
+                  )}
+                  {renderDiffEntryList(
+                    "삭제",
+                    pendingImportDiff?.workItems.deleted ?? [],
+                    "delete"
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-zinc-400">
+                  체크포인트
+                </h3>
+                <div className="mt-2 space-y-3">
+                  {renderDiffEntryList(
+                    "추가",
+                    pendingImportDiff?.checkpoints.added ?? [],
+                    "add"
+                  )}
+                  {renderDiffEntryList(
+                    "수정",
+                    pendingImportDiff?.checkpoints.modified ?? [],
+                    "modify"
+                  )}
+                  {renderDiffEntryList(
+                    "삭제",
+                    pendingImportDiff?.checkpoints.deleted ?? [],
+                    "delete"
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-zinc-200 p-4">
+              <button
+                type="button"
+                onClick={() => setIsOverwritePreviewOpen(false)}
+                className="rounded-md px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
+              >
+                뒤로
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPendingImport("overwrite")}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+              >
+                그래도 덮어쓰기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingImport && !isOverwritePreviewOpen && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
             <h2 className="text-base font-semibold">Excel 불러오기</h2>
@@ -3257,7 +3686,7 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                onClick={() => applyPendingImport("overwrite")}
+                onClick={handleOverwriteImportClick}
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
               >
                 현재 프로젝트에 덮어쓰기
@@ -3268,7 +3697,7 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                onClick={() => setPendingImport(null)}
+                onClick={cancelPendingImport}
                 className="w-full rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-100"
               >
                 취소
