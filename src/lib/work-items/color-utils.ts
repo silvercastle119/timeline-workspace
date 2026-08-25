@@ -38,7 +38,15 @@ function rgbToHex([r, g, b]: [number, number, number]): string {
       .toString(16)
       .padStart(2, "0");
 
-  return `#${toByte(r)}${toByte(g)}${toByte(b)}`;
+  // Uppercase to match every other hex producer in this module/app
+  // (DEFAULT_COLOR_PALETTE, colorToExcelArgb, argbToHex in excel-import.ts)
+  // — excel-import.ts's G' fallback (a 1-day item that's also its own
+  // checkpoint) reverse-derives the base color via lightenColor(), and that
+  // value gets stored as item.color and compared with `===` against the
+  // palette (see the customColors dedup in excel-import.ts and the aside
+  // panel's swatch-selection check) — a lowercase/uppercase mismatch there
+  // silently defeated both.
+  return `#${toByte(r)}${toByte(g)}${toByte(b)}`.toUpperCase();
 }
 
 function srgbToLinear(c: number) {
@@ -122,6 +130,63 @@ export function blendColors(colors: string[]): string {
   const h = sinSum === 0 && cosSum === 0 ? 0 : Math.atan2(sinSum, cosSum);
 
   return rgbToHex(oklchToRgb({ l, c, h }));
+}
+
+// Darkens a hex color by reducing OKLCH lightness — used to derive a
+// checkpoint marker's fill/border from its parent Work Item's color, so no
+// new fixed palette is introduced (see color-utils.ts module doc above).
+export function darkenColor(hex: string, amount: number): string {
+  const safeHex = HEX_COLOR_PATTERN.test(hex) ? hex : DEFAULT_BAR_COLOR;
+  const oklch = rgbToOklch(hexToRgb(safeHex));
+
+  return rgbToHex(oklchToRgb({ ...oklch, l: Math.max(0, oklch.l - amount) }));
+}
+
+// Inverse of darkenColor — used by Excel import to recover a Work Item's
+// base color from a checkpoint cell's (already-darkened) fill when a row
+// has no other, non-checkpoint-styled cell to sample the base color from
+// (e.g. a 1-day item whose only day is also its checkpoint).
+export function lightenColor(hex: string, amount: number): string {
+  const safeHex = HEX_COLOR_PATTERN.test(hex) ? hex : DEFAULT_BAR_COLOR;
+  const oklch = rgbToOklch(hexToRgb(safeHex));
+
+  return rgbToHex(oklchToRgb({ ...oklch, l: Math.min(1, oklch.l + amount) }));
+}
+
+// Minimum OKLCH lightness drop for `candidateHex` to count as a "darker
+// variant" of `baseHex` — well below the fixed 0.22 that darkenColor uses
+// at export time, so float/rounding drift never causes a false negative,
+// but high enough to reject two colors that are basically the same.
+const MIN_DARKER_LIGHTNESS_DROP = 0.08;
+// Below this OKLCH chroma a color is close enough to gray that its hue
+// angle is numerically unstable, so hue comparison is skipped and only
+// the lightness drop is used.
+const MIN_CHROMA_FOR_HUE_CHECK = 0.02;
+// Max OKLCH hue difference (radians) to still count as "the same color
+// family" — generous enough to tolerate rendering-related drift while
+// still rejecting an unrelated color.
+const MAX_HUE_DIFF_RADIANS = Math.PI / 4;
+
+// Used by Excel import to tell a checkpoint cell (darker variant of its
+// row's base color) apart from a cell a user simply bolded/recolored by
+// hand — see the Excel Import redesign plan's checkpoint-detection algorithm.
+export function isDarkerVariant(candidateHex: string, baseHex: string): boolean {
+  if (!HEX_COLOR_PATTERN.test(candidateHex) || !HEX_COLOR_PATTERN.test(baseHex)) {
+    return false;
+  }
+
+  const candidate = rgbToOklch(hexToRgb(candidateHex));
+  const base = rgbToOklch(hexToRgb(baseHex));
+
+  if (base.l - candidate.l < MIN_DARKER_LIGHTNESS_DROP) return false;
+  if (base.c < MIN_CHROMA_FOR_HUE_CHECK || candidate.c < MIN_CHROMA_FOR_HUE_CHECK) {
+    return true;
+  }
+
+  let hueDiff = Math.abs(base.h - candidate.h);
+  if (hueDiff > Math.PI) hueDiff = 2 * Math.PI - hueDiff;
+
+  return hueDiff <= MAX_HUE_DIFF_RADIANS;
 }
 
 export function colorToExcelArgb(hex: string): string {

@@ -22,6 +22,9 @@ export type AnalyticsEventType =
   // TIMELINE
   | "timeline_move"
   | "timeline_resize"
+  // CHECKPOINT
+  | "checkpoint_add"
+  | "checkpoint_delete"
   // AI
   | "ai_panel_open"
   | "ai_schedule"

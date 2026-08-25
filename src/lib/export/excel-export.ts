@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { getDatesInRange, isSaturday, isSunday } from "@/lib/timeline/date-utils";
 import {
   colorToExcelArgb,
+  darkenColor,
   DEFAULT_BAR_COLOR,
 } from "@/lib/work-items/color-utils";
 import {
@@ -11,33 +12,19 @@ import {
   getEffectiveWorkItemTimelines,
   getWorkItemDisplayRows,
 } from "@/lib/work-items/tree-utils";
-import type { Project } from "@/types/project";
+import type { Checkpoint, Project } from "@/types/project";
 
-export const METADATA_SHEET_NAME = "_metadata";
-export const PROJECT_SHEET_NAME = "_project";
-// Layout of the visible display sheet's header/data rows, its 메모 column's
-// header label, and the hidden id column's header label — shared with
-// excel-import.ts so it can locate both columns by label (rather than
-// re-deriving the layout math) and read back edits made to the visible memo
-// cells, matched to the right Work Item via the hidden id column.
+// Layout of the visible Gantt display sheet's header/data rows, its 메모
+// column's header label, and its hidden id column's header label — shared
+// with excel-import.ts, which now reverse-parses this sheet's cell colors/
+// bold/merge structure as the sole source of truth for re-import (no
+// separate data-entry sheet). The hidden `_id` column is what lets a
+// re-import match a row back to an existing Work Item; a blank value means
+// a brand-new row the user added directly in Excel.
 export const DISPLAY_SHEET_HEADER_ROW_INDEX = 2;
 export const DISPLAY_SHEET_FIRST_DATA_ROW_INDEX = 5;
 export const DISPLAY_SHEET_MEMO_HEADER_LABEL = "메모";
 export const DISPLAY_SHEET_ID_COLUMN_HEADER_LABEL = "_id";
-export const METADATA_HEADER = [
-  "id",
-  "name",
-  "parentId",
-  "order",
-  "startDate",
-  "endDate",
-  "autoTimeline",
-  "isUndecided",
-  "active",
-  "color",
-  "memo",
-  "autoMemoNote",
-] as const;
 
 const UNDECIDED_FILL_COLOR = "#d4d4d8";
 
@@ -186,8 +173,7 @@ function getConsecutiveRuns<T>(
 }
 
 export async function exportProjectToExcel(
-  project: Project,
-  collapsedItemIds: Set<string>
+  project: Project
 ): Promise<void> {
   const workItems = filterOutInactiveSubtrees(project.workItems);
   const effectiveTimelines = getEffectiveWorkItemTimelines(workItems);
@@ -196,9 +182,14 @@ export async function exportProjectToExcel(
     effectiveTimelines,
     { startDate: project.timelineStart, endDate: project.timelineEnd }
   );
+  // Always fully expanded, regardless of the app's current collapse UI
+  // state — the Timeline sheet is now the sole import source of truth, so
+  // a collapsed row's Work Items must never simply be absent from the file
+  // (excel-import.ts would otherwise have no way to tell "collapsed" apart
+  // from "deleted").
   const displayRows = getWorkItemDisplayRows(
     workItems,
-    collapsedItemIds,
+    new Set<string>(),
     displayTimelines
   );
   const timelineDates = getDatesInRange(
@@ -219,8 +210,9 @@ export async function exportProjectToExcel(
   const totalColumnCount =
     hierarchyColumnCount + 1 + timelineDates.length;
   // Appended after every visible column so none of the layout/merge/border
-  // math above needs to account for it. Hidden — carries each row's Work
-  // Item id so a re-import can match an edited 메모 cell back to its item.
+  // math above needs to account for it. Hidden, not veryHidden — this is
+  // the match key excel-import.ts uses to tell "existing row the user
+  // edited" apart from "brand-new row added directly in Excel".
   const idColumnIndex = totalColumnCount + 1;
 
   const workbook = new ExcelJS.Workbook();
@@ -442,8 +434,8 @@ export async function exportProjectToExcel(
     memoCell.font = { name: KOREAN_FONT, italic: true, size: 9, color: { argb: MEMO_FONT_COLOR } };
     memoCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
 
-    // Hidden id column, out of sight — lets a re-import tell which Work
-    // Item this row's 메모 cell belongs to and pick up edits made here.
+    // Hidden id column, out of sight — informational only, see comment
+    // where idColumnIndex is computed above.
     sheet.getCell(excelRowIndex, idColumnIndex).value = row.item.id;
 
     sheet.getRow(excelRowIndex).height = 20;
@@ -452,17 +444,32 @@ export async function exportProjectToExcel(
 
     const { timeline } = row.timelineBar;
 
+    // Checkpoints only apply to manual (non-autoTimeline), decided rows —
+    // same eligibility as the web Timeline bar's own checkpoint markers,
+    // since an auto-aggregated row's fill is a blend of children's colors
+    // with no single "own color" a checkpoint could be derived from.
+    const checkpointByDate =
+      !row.item.autoTimeline && !row.item.isUndecided
+        ? new Map(
+            row.item.checkpoints.map((checkpoint) => [checkpoint.date, checkpoint])
+          )
+        : new Map<string, Checkpoint>();
+
     // Auto-aggregated rows split into one segment per actual change in
     // which child work items are active — not just per same-color run —
     // so overlapping children show as "childA / childB" exactly where
     // their date ranges actually overlap. Manual rows are always a single
-    // named segment (the item itself) across its own date range.
+    // named segment (the item itself) across its own date range, except at
+    // a checkpoint date, which breaks out into its own single-cell segment
+    // (darker fill, own label) so it reads the same way the web Timeline's
+    // checkpoint marker does — one date, standing out from the bar around it.
     const segments = row.item.autoTimeline
       ? getAggregateNamedColorSegments(workItems, row.item, timeline).map(
           (segment) => ({
             date: segment.date,
             color: segment.color,
             label: segment.names.join(" / "),
+            isCheckpoint: false,
           })
         )
       : timelineDates
@@ -470,29 +477,49 @@ export async function exportProjectToExcel(
             (date) =>
               date >= timeline.startDate && date <= timeline.endDate
           )
-          .map((date) => ({
-            date,
-            color: row.item.isUndecided
+          .map((date) => {
+            const baseColor = row.item.isUndecided
               ? UNDECIDED_FILL_COLOR
-              : (row.item.color ?? DEFAULT_BAR_COLOR),
-            label: row.item.name,
-          }));
+              : (row.item.color ?? DEFAULT_BAR_COLOR);
+            const checkpoint = checkpointByDate.get(date);
+
+            if (checkpoint) {
+              return {
+                date,
+                color: darkenColor(baseColor, 0.22),
+                label: checkpoint.label,
+                isCheckpoint: true,
+              };
+            }
+
+            return {
+              date,
+              color: baseColor,
+              label: row.item.name,
+              isCheckpoint: false,
+            };
+          });
 
     // Group consecutive dates that share both the same color AND the same
     // contributing label into merged cell ranges instead of filling one
-    // cell per date.
+    // cell per date. A checkpoint segment never merges with its neighbors
+    // (even if a name/color happened to coincide) — it always stays its
+    // own single cell, just filled a shade darker than the bar around it.
     let index = 0;
 
     while (index < segments.length) {
-      const { color, label } = segments[index];
+      const { color, label, isCheckpoint } = segments[index];
       let end = index;
 
-      while (
-        end + 1 < segments.length &&
-        segments[end + 1].color === color &&
-        segments[end + 1].label === label
-      ) {
-        end++;
+      if (!isCheckpoint) {
+        while (
+          end + 1 < segments.length &&
+          !segments[end + 1].isCheckpoint &&
+          segments[end + 1].color === color &&
+          segments[end + 1].label === label
+        ) {
+          end++;
+        }
       }
 
       const startDateIndex = dateColumnIndexByDate.get(segments[index].date);
@@ -519,7 +546,12 @@ export async function exportProjectToExcel(
       const barCell = sheet.getCell(excelRowIndex, startColumn);
 
       if (label) barCell.value = label;
-      barCell.font = { name: KOREAN_FONT, size: 9, color: { argb: textColor } };
+      barCell.font = {
+        name: KOREAN_FONT,
+        size: 9,
+        bold: isCheckpoint,
+        color: { argb: textColor },
+      };
       barCell.alignment = { horizontal: "center", vertical: "middle", shrinkToFit: true };
       barCell.fill = {
         type: "pattern",
@@ -596,40 +628,6 @@ export async function exportProjectToExcel(
   for (let index = 0; index < timelineDates.length; index++) {
     sheet.getColumn(firstDateColumnIndex + index).width = 6;
   }
-
-  // Hidden metadata sheets: a lossless copy of the raw project + work item
-  // data (unaffected by collapse/active filtering or any of the styling
-  // above) so the workbook can be re-imported without losing anything the
-  // visible sheet omits.
-  const projectSheet = workbook.addWorksheet(PROJECT_SHEET_NAME);
-  projectSheet.state = "veryHidden";
-  projectSheet.addRow(["key", "value"]);
-  projectSheet.addRow(["id", project.id]);
-  projectSheet.addRow(["name", project.name]);
-  projectSheet.addRow(["timelineStart", project.timelineStart]);
-  projectSheet.addRow(["timelineEnd", project.timelineEnd]);
-  projectSheet.addRow(["customColors", project.customColors.join(",")]);
-
-  const metadataSheet = workbook.addWorksheet(METADATA_SHEET_NAME);
-  metadataSheet.state = "veryHidden";
-  metadataSheet.addRow([...METADATA_HEADER]);
-
-  project.workItems.forEach((item) => {
-    metadataSheet.addRow([
-      item.id,
-      item.name,
-      item.parentId ?? "",
-      item.order,
-      item.startDate ?? "",
-      item.endDate ?? "",
-      item.autoTimeline,
-      item.isUndecided,
-      item.active,
-      item.color ?? "",
-      item.memo,
-      item.autoMemoNote ?? "",
-    ]);
-  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
