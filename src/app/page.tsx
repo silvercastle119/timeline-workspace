@@ -206,6 +206,31 @@ QA
   },
   {
     number: "05",
+    title: "체크포인트",
+    body: (
+      <>
+        <p>
+          일정 중 특정 날짜를 중요한 시점으로 표시할 수 있습니다.
+        </p>
+        <p>
+          체크포인트가 지정된 날짜는{" "}
+          <b className="text-zinc-900">진한 색상과 굵은 글씨</b>로 표시됩니다.
+        </p>
+        <p>
+          여러 날짜를 체크포인트로 지정할 수 있으며, 일정의 시작·중간·종료
+          시점 어디에든 설정할 수 있습니다.
+        </p>
+        <p>
+          일정이 설정된 Work Item을 클릭한 뒤 우측 상세 패널의{" "}
+          <GuideKbd>+ 체크포인트 추가</GuideKbd>{" "}
+          <b className="text-zinc-900">버튼</b>을 클릭하여 체크포인트를
+          추가할 수 있습니다.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "06",
     title: "Timeline의 막대를 직접 조정하세요",
     body: (
       <>
@@ -238,7 +263,7 @@ QA
     ),
   },
   {
-    number: "06",
+    number: "07",
     title: "하위 일정 자동 반영을 사용하세요",
     body: (
       <>
@@ -274,7 +299,7 @@ QA
     ),
   },
   {
-    number: "07",
+    number: "08",
     title: "일정이 정해지지 않은 업무는 '일정 미정'으로 관리하세요",
     body: (
       <>
@@ -295,7 +320,7 @@ QA
     ),
   },
   {
-    number: "08",
+    number: "09",
     title: "전체적인 프로젝트 흐름을 확인하세요",
     body: (
       <>
@@ -324,7 +349,7 @@ QA
     ),
   },
   {
-    number: "09",
+    number: "10",
     title: "프로젝트를 Excel로 내보내세요",
     body: (
       <>
@@ -388,11 +413,21 @@ const GUIDE_SUMMARY_STEPS: GuideStepContent[] = [
   },
   {
     number: "05",
+    title: "체크포인트",
+    body: (
+      <>
+        일정 상세 패널의 <GuideKbd>+ 체크포인트 추가</GuideKbd> →
+        특정 날짜를 진한 색상·굵은 글씨로 강조
+      </>
+    ),
+  },
+  {
+    number: "06",
     title: "Timeline 조정",
     body: <>막대 전체를 드래그하여 이동하거나 양끝을 드래그하여 기간 조정</>,
   },
   {
-    number: "06",
+    number: "07",
     title: "하위 일정 자동 반영",
     body: (
       <>
@@ -402,7 +437,7 @@ const GUIDE_SUMMARY_STEPS: GuideStepContent[] = [
     ),
   },
   {
-    number: "07",
+    number: "08",
     title: "일정 미정",
     body: (
       <>
@@ -412,12 +447,12 @@ const GUIDE_SUMMARY_STEPS: GuideStepContent[] = [
     ),
   },
   {
-    number: "08",
+    number: "09",
     title: "전체 흐름 확인",
     body: <>Timeline에서 업무 구조와 시간 흐름 확인</>,
   },
   {
-    number: "09",
+    number: "10",
     title: "Excel Export",
     body: (
       <>
@@ -537,6 +572,31 @@ const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
         상위 업무의 상세 패널에서 <GuideKbd>하위 일정 자동 반영</GuideKbd>을
         선택하면 하위 업무의 일정이 상위 업무에 반영됩니다.
       </p>
+    ),
+  },
+  {
+    question: "다운로드한 Excel 파일을 수정해서 다시 가져올 수 있나요?",
+    answer: (
+      <>
+        <p>
+          네. 다운로드한 Excel 파일에서 일정의 날짜, 색상, 이름, 메모,
+          체크포인트, 행 순서 등을 수정한 후 다시 가져올 수 있습니다.
+        </p>
+        <p>예를 들어 다음과 같은 수정이 가능합니다.</p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>일정의 시작일·종료일 변경</li>
+          <li>일정 막대의 색상 변경</li>
+          <li>업무 이름 변경</li>
+          <li>메모 내용 변경</li>
+          <li>체크포인트 추가·삭제·이동</li>
+          <li>업무(행) 순서 변경</li>
+          <li>Work Item 추가·삭제</li>
+        </ul>
+        <p>
+          변경된 내용은 <GuideKbd>Excel 불러오기</GuideKbd>로 가져오는 과정에서
+          가져오기 전에 확인할 수 있으며, 확인 후 프로젝트에 반영됩니다.
+        </p>
+      </>
     ),
   },
 ];
@@ -1174,6 +1234,25 @@ export default function Home() {
 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isGuideOpen, closeGuide]);
+
+  useEffect(() => {
+    if (!selectedItemId || isGuideOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Quick-add has its own Escape handler (finishQuickAddChildren) that
+      // takes priority — it should exit quick-add mode without closing the
+      // whole panel.
+      if (event.key !== "Escape" || isQuickAddingChildren) return;
+
+      flushPendingItemChange();
+      setSelectedItemIds(new Set());
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItemId, isGuideOpen, isQuickAddingChildren]);
 
   const workItems = project.workItems;
   const inactiveSubtreeIds = getInactiveSubtreeIds(workItems);

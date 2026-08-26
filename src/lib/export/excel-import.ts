@@ -56,6 +56,15 @@ function cellToString(value: ExcelJS.CellValue): string {
     return String((value as { text: unknown }).text ?? "");
   }
   if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "object" && ("formula" in value || "sharedFormula" in value)) {
+    const result = (value as ExcelJS.CellFormulaValue | ExcelJS.CellSharedFormulaValue).result;
+
+    if (result === null || result === undefined) return "";
+    if (result instanceof Date) return result.toISOString().slice(0, 10);
+    if (typeof result === "object") return "";
+
+    return String(result);
+  }
 
   return String(value);
 }
