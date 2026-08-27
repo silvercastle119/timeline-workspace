@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SITE_URL } from "@/lib/seo/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,9 +13,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const TITLE = "TO-DO-LINE | AI 일정표 · 프로젝트 타임라인 관리";
+const DESCRIPTION =
+  "TO-DO-LINE은 AI로 손쉽게 일정표를 만들고 프로젝트 타임라인과 업무 일정을 간트차트 형태로 관리할 수 있는 서비스입니다. 엑셀 일정표를 그대로 불러오거나 내보낼 수 있어 복잡한 설정 없이 바로 사용할 수 있습니다.";
+
 export const metadata: Metadata = {
-  title: "TO-DO-LINE",
-  description: "업무를 잇고, 흐름을 보다.",
+  metadataBase: SITE_URL ? new URL(SITE_URL) : undefined,
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    siteName: "TO-DO-LINE",
+    locale: "ko_KR",
+    type: "website",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
