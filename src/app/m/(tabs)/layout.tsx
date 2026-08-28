@@ -58,6 +58,7 @@ export default function MobileTabsLayout({ children }: { children: ReactNode }) 
     canRedo,
     updateProjectSettings,
     switchToProject,
+    createProject,
   } = useMobileProject();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProjectManagementOpen, setIsProjectManagementOpen] = useState(false);
@@ -191,6 +192,7 @@ export default function MobileTabsLayout({ children }: { children: ReactNode }) 
           project={project}
           onSaveSettings={updateProjectSettings}
           onSwitchProject={switchToProject}
+          onCreateProject={createProject}
           onClose={() => setIsProjectManagementOpen(false)}
         />
       )}
