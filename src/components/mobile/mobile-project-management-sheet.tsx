@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getMaxTimelineEndDate } from "@/lib/timeline/timeline-validation";
 import {
   listProjectSummaries,
@@ -8,6 +9,7 @@ import {
   type StoredProjectSummary,
 } from "@/lib/persistence/indexed-db";
 import { MobileConfirmDialog } from "@/components/mobile/mobile-confirm-dialog";
+import { MobileCreateProjectDialog } from "@/components/mobile/mobile-create-project-dialog";
 import type { ImportDiff } from "@/lib/export/excel-import";
 import type { Project } from "@/types/project";
 
@@ -21,8 +23,21 @@ type MobileProjectManagementSheetProps = {
     timelineEnd: string
   ) => ProjectSettingsResult;
   onSwitchProject: (nextProject: Project) => void;
+  onCreateProject: (
+    name: string,
+    timelineStart: string,
+    timelineEnd: string
+  ) => ProjectSettingsResult;
   onClose: () => void;
 };
+
+function getLocalDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
 
 function countDiffEntries(diff: ImportDiff) {
   return {
@@ -36,12 +51,19 @@ export function MobileProjectManagementSheet({
   project,
   onSaveSettings,
   onSwitchProject,
+  onCreateProject,
   onClose,
 }: MobileProjectManagementSheetProps) {
+  const router = useRouter();
+
   // 내 프로젝트
   const [projectSummaries, setProjectSummaries] = useState<StoredProjectSummary[] | null>(null);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
+  const [createDefaults, setCreateDefaults] = useState<{
+    timelineStart: string;
+    timelineEnd: string;
+  } | null>(null);
 
   // 현재 프로젝트 설정
   const [nameDraft, setNameDraft] = useState(project.name);
@@ -91,6 +113,29 @@ export function MobileProjectManagementSheet({
     } finally {
       setSwitchingId(null);
     }
+  };
+
+  const openCreateProjectDialog = () => {
+    const today = new Date();
+    const timelineEndDate = new Date(today);
+    timelineEndDate.setDate(timelineEndDate.getDate() + 90);
+
+    setCreateDefaults({
+      timelineStart: getLocalDateString(today),
+      timelineEnd: getLocalDateString(timelineEndDate),
+    });
+  };
+
+  const handleCreateProject = (name: string, timelineStart: string, timelineEnd: string) => {
+    const result = onCreateProject(name, timelineStart, timelineEnd);
+
+    if (result.valid) {
+      setCreateDefaults(null);
+      onClose();
+      router.push("/m");
+    }
+
+    return result;
   };
 
   const handleSaveSettings = () => {
@@ -258,6 +303,14 @@ export function MobileProjectManagementSheet({
               </div>
             )}
             {switchError && <p className="text-xs text-red-600">{switchError}</p>}
+
+            <button
+              type="button"
+              onClick={openCreateProjectDialog}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-zinc-300 py-3 text-sm font-medium text-zinc-600 hover:border-blue-400 hover:text-blue-600"
+            >
+              <span aria-hidden>+</span> 새 프로젝트 만들기
+            </button>
           </div>
 
           <div className="space-y-4 border-t border-zinc-200 pt-5">
@@ -345,6 +398,16 @@ export function MobileProjectManagementSheet({
           </div>
         </div>
       </div>
+
+      {createDefaults && (
+        <MobileCreateProjectDialog
+          defaultName="새 프로젝트"
+          defaultTimelineStart={createDefaults.timelineStart}
+          defaultTimelineEnd={createDefaults.timelineEnd}
+          onCreate={handleCreateProject}
+          onCancel={() => setCreateDefaults(null)}
+        />
+      )}
 
       {pendingImport && diffCounts && checkpointDiffCounts && (
         <MobileConfirmDialog

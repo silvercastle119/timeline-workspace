@@ -67,6 +67,11 @@ type MobileProjectContextValue = {
     timelineEnd: string
   ) => ProjectSettingsResult;
   switchToProject: (nextProject: Project) => void;
+  createProject: (
+    name: string,
+    timelineStart: string,
+    timelineEnd: string
+  ) => ProjectSettingsResult;
   collapsedItemIds: Set<string>;
   toggleCollapsedItem: (id: string) => void;
   undo: () => void;
@@ -270,6 +275,29 @@ export function MobileProjectProvider({ children }: { children: ReactNode }) {
     [resetState]
   );
 
+  // PC createNewProject(page.tsx:2035~2038)와 동일한 흐름(생성 즉시
+  // switchToProject) — 단, workItems는 PC의 데모 시드가 아니라 빈
+  // 배열로 시작한다(모바일 기본 프로젝트 규칙과 동일, 요청사항 그대로).
+  const createProject = useCallback(
+    (name: string, timelineStart: string, timelineEnd: string): ProjectSettingsResult => {
+      const rangeCheck = validateTimelineRange(timelineStart, timelineEnd);
+
+      if (!rangeCheck.valid) return rangeCheck;
+
+      switchToProject({
+        id: crypto.randomUUID(),
+        name,
+        timelineStart,
+        timelineEnd,
+        workItems: [],
+        customColors: [],
+      });
+
+      return { valid: true };
+    },
+    [switchToProject]
+  );
+
   const toggleCollapsedItem = useCallback((id: string) => {
     setCollapsedItemIds((current) => {
       const next = new Set(current);
@@ -294,6 +322,7 @@ export function MobileProjectProvider({ children }: { children: ReactNode }) {
     moveWorkItem,
     updateProjectSettings,
     switchToProject,
+    createProject,
     collapsedItemIds,
     toggleCollapsedItem,
     undo,
