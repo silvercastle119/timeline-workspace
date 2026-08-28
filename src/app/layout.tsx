@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const TITLE = "TO-DO-LINE | AI 일정표 · 프로젝트 타임라인 관리";
+const TITLE = "투두라인 TO-DO-LINE | 프로젝트 타임라인 생성";
 const DESCRIPTION =
-  "AI 일정표와 프로젝트 타임라인으로 업무 일정을 간편하게 관리하세요. 엑셀 일정표를 불러오고 내보낼 수 있습니다.";
+  "업무 일정을 타임라인으로 한눈에 관리하세요. 엑셀 일정표를 불러오고 내보낼 수 있으며, AI로 더 간편하게 사용할 수 있습니다.";
 
 export const metadata: Metadata = {
   metadataBase: SITE_URL ? new URL(SITE_URL) : undefined,
