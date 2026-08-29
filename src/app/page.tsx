@@ -769,16 +769,24 @@ function computeDropIndicator(
   clientY: number,
   panelRect: DOMRect | null
 ): DropIndicator | null {
-  if (panelRect && clientX - panelRect.left < ROOT_ZONE_PX) {
+  const target = document.elementFromPoint(clientX, clientY);
+  const rowElement = target?.closest<HTMLElement>("[data-row-id]");
+  const targetItemId = rowElement?.dataset.rowId;
+  // Root rows render at the shallowest indentation, so their own content
+  // already sits inside the left-edge root-zone band — without this check,
+  // hovering over another root item to reorder it is indistinguishable from
+  // reaching for the root-zone "unparent" shortcut, and the shortcut always
+  // wins, which is exactly why root-to-root reordering looked broken.
+  const isTargetRootItem = targetItemId
+    ? workItems.find((item) => item.id === targetItemId)?.parentId === null
+    : false;
+
+  if (panelRect && clientX - panelRect.left < ROOT_ZONE_PX && !isTargetRootItem) {
     return { mode: "root" };
   }
 
-  const target = document.elementFromPoint(clientX, clientY);
-  const rowElement = target?.closest<HTMLElement>("[data-row-id]");
+  if (!rowElement || !targetItemId) return null;
 
-  if (!rowElement) return null;
-
-  const targetItemId = rowElement.dataset.rowId as string;
   const invalidTargetIds = getDescendantWorkItemIds(workItems, draggedItemId);
   invalidTargetIds.add(draggedItemId);
 
