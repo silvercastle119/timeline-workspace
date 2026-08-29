@@ -95,7 +95,10 @@ export async function generateStructuredContent(
     return {
       ok: false,
       errorCode: "upstream_error",
-      message: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+      // Never forward the raw upstream exception text to the client — it's
+      // an internal Gemini SDK detail, not something callers act on (the UI
+      // only ever reads errorCode, see ai-panel.tsx's friendlyErrorMessage).
+      message: "AI 요청을 처리하지 못했습니다.",
     };
   } finally {
     clearTimeout(timeoutId);

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { generateStructuredContent } from "@/lib/ai/gemini-client";
 import { buildScheduleFillPrompt, SCHEDULE_FILL_SYSTEM_INSTRUCTION } from "@/lib/ai/prompts";
-import { CONDITION_NOTE_MAX_LENGTH } from "@/lib/ai/build-payload";
+import { CONDITION_NOTE_MAX_LENGTH, MEMO_MAX_LENGTH, NAME_MAX_LENGTH } from "@/lib/ai/build-payload";
+import { isRateLimited, isRequestTooLarge } from "@/lib/ai/api-guard";
 import {
   scheduleSuggestionJsonSchema,
   type FillScheduleRequestBody,
@@ -15,9 +16,21 @@ const MAX_WORK_ITEMS = 500;
 // the chance to return its (nicer) error response.
 export const maxDuration = 60;
 
-// Beta: no per-project rate limit yet. When one is added (e.g. N requests
-// per project per day), this is the place to check it before calling Gemini.
 export async function POST(request: Request) {
+  if (isRateLimited(request, "fill-schedule")) {
+    return NextResponse.json(
+      { errorCode: "rate_limited", message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+      { status: 429 }
+    );
+  }
+
+  if (isRequestTooLarge(request)) {
+    return NextResponse.json(
+      { errorCode: "invalid_request", message: "요청 본문이 너무 큽니다." },
+      { status: 413 }
+    );
+  }
+
   let body: unknown;
 
   try {
@@ -108,6 +121,10 @@ function parseRequestBody(
       typeof item.targetForSuggestion !== "boolean"
     ) {
       return { ok: false, message: "Work Item 형식이 올바르지 않습니다." };
+    }
+
+    if (item.name.length > NAME_MAX_LENGTH || item.memo.length > MEMO_MAX_LENGTH) {
+      return { ok: false, message: "Work Item 이름 또는 메모가 너무 깁니다." };
     }
 
     validatedItems.push({

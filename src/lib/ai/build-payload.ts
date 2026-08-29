@@ -12,8 +12,14 @@ import type {
   ReviewProjectRequestBody,
 } from "@/lib/ai/schemas";
 
-const MEMO_MAX_LENGTH = 200;
+export const MEMO_MAX_LENGTH = 200;
 export const CONDITION_NOTE_MAX_LENGTH = 300;
+// No dedicated name limit exists anywhere in the app (PC/mobile UI both
+// allow arbitrary-length names) — reusing MEMO_MAX_LENGTH here isn't a UX
+// choice, just a generous, already-vetted ceiling for the server-side
+// abuse check in the AI routes (a real work item name never gets close to
+// it, so normal usage is unaffected).
+export const NAME_MAX_LENGTH = MEMO_MAX_LENGTH;
 
 function trimMemo(memo: string): string {
   return memo.length > MEMO_MAX_LENGTH ? memo.slice(0, MEMO_MAX_LENGTH) : memo;
