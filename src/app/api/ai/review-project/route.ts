@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { generateStructuredContent } from "@/lib/ai/gemini-client";
 import { buildProjectReviewPrompt, PROJECT_REVIEW_SYSTEM_INSTRUCTION } from "@/lib/ai/prompts";
+import { MEMO_MAX_LENGTH, NAME_MAX_LENGTH } from "@/lib/ai/build-payload";
+import { isRateLimited, isRequestTooLarge } from "@/lib/ai/api-guard";
 import {
   reviewIssueJsonSchema,
   type AiReviewWorkItemInput,
@@ -15,6 +17,20 @@ const MAX_WORK_ITEMS = 500;
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  if (isRateLimited(request, "review-project")) {
+    return NextResponse.json(
+      { errorCode: "rate_limited", message: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
+      { status: 429 }
+    );
+  }
+
+  if (isRequestTooLarge(request)) {
+    return NextResponse.json(
+      { errorCode: "invalid_request", message: "요청 본문이 너무 큽니다." },
+      { status: 413 }
+    );
+  }
+
   let body: unknown;
 
   try {
@@ -98,6 +114,10 @@ function parseRequestBody(
       typeof item.memo !== "string"
     ) {
       return { ok: false, message: "Work Item 형식이 올바르지 않습니다." };
+    }
+
+    if (item.name.length > NAME_MAX_LENGTH || item.memo.length > MEMO_MAX_LENGTH) {
+      return { ok: false, message: "Work Item 이름 또는 메모가 너무 깁니다." };
     }
 
     validatedItems.push({

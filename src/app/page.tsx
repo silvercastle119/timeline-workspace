@@ -769,16 +769,24 @@ function computeDropIndicator(
   clientY: number,
   panelRect: DOMRect | null
 ): DropIndicator | null {
-  if (panelRect && clientX - panelRect.left < ROOT_ZONE_PX) {
+  const target = document.elementFromPoint(clientX, clientY);
+  const rowElement = target?.closest<HTMLElement>("[data-row-id]");
+  const targetItemId = rowElement?.dataset.rowId;
+  // Root rows render at the shallowest indentation, so their own content
+  // already sits inside the left-edge root-zone band — without this check,
+  // hovering over another root item to reorder it is indistinguishable from
+  // reaching for the root-zone "unparent" shortcut, and the shortcut always
+  // wins, which is exactly why root-to-root reordering looked broken.
+  const isTargetRootItem = targetItemId
+    ? workItems.find((item) => item.id === targetItemId)?.parentId === null
+    : false;
+
+  if (panelRect && clientX - panelRect.left < ROOT_ZONE_PX && !isTargetRootItem) {
     return { mode: "root" };
   }
 
-  const target = document.elementFromPoint(clientX, clientY);
-  const rowElement = target?.closest<HTMLElement>("[data-row-id]");
+  if (!rowElement || !targetItemId) return null;
 
-  if (!rowElement) return null;
-
-  const targetItemId = rowElement.dataset.rowId as string;
   const invalidTargetIds = getDescendantWorkItemIds(workItems, draggedItemId);
   invalidTargetIds.add(draggedItemId);
 
@@ -1056,6 +1064,8 @@ export default function Home() {
     itemId: string;
     startX: number;
     startY: number;
+    width: number;
+    height: number;
     timer: ReturnType<typeof setTimeout>;
     dragging: boolean;
   } | null>(null);
@@ -1069,6 +1079,16 @@ export default function Home() {
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(
     null
   );
+  // Drag preview overlay — mirrors the mobile hierarchy screen's ghost
+  // (src/components/mobile/mobile-hierarchy-screen.tsx GhostState/beginDrag):
+  // a small floating card that follows the pointer while treeDragItemId is
+  // set, separate from the row left behind (which just gets faded).
+  const [treeDragGhost, setTreeDragGhost] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   // Analytics: fires project_open once per distinct project id becoming the
   // active project (dedup via lastOpenedProjectIdRef). Safe to call from
@@ -1274,6 +1294,8 @@ export default function Home() {
   const selectedItem = workItems.find(
     (item) => item.id === selectedItemId
   );
+
+  const treeDraggedItem = workItems.find((item) => item.id === treeDragItemId);
   const selectedEffectiveTimeline = selectedItem
     ? effectiveTimelines.get(selectedItem.id)
     : null;
@@ -1768,6 +1790,8 @@ export default function Home() {
 
     event.currentTarget.setPointerCapture(event.pointerId);
 
+    const { width, height } = event.currentTarget.getBoundingClientRect();
+
     const timer = setTimeout(() => {
       const pending = treePressRef.current;
 
@@ -1775,6 +1799,12 @@ export default function Home() {
         pending.dragging = true;
         setTreeDragItemId(item.id);
         setDropIndicator(null);
+        setTreeDragGhost({
+          x: pending.startX,
+          y: pending.startY,
+          width: pending.width,
+          height: pending.height,
+        });
       }
     }, TREE_HOLD_MS);
 
@@ -1782,6 +1812,8 @@ export default function Home() {
       itemId: item.id,
       startX: event.clientX,
       startY: event.clientY,
+      width,
+      height,
       timer,
       dragging: false,
     };
@@ -1806,6 +1838,12 @@ export default function Home() {
       pending.dragging = true;
       setTreeDragItemId(pending.itemId);
       setDropIndicator(null);
+      setTreeDragGhost({
+        x: pending.startX,
+        y: pending.startY,
+        width: pending.width,
+        height: pending.height,
+      });
     }
 
     const panelRect = treeListRef.current?.getBoundingClientRect() ?? null;
@@ -1818,6 +1856,9 @@ export default function Home() {
     );
 
     setDropIndicator(indicator);
+    setTreeDragGhost((current) =>
+      current ? { ...current, x: event.clientX, y: event.clientY } : current
+    );
   };
 
   const handleTreeRowPointerUp = (
@@ -1842,6 +1883,7 @@ export default function Home() {
 
     setTreeDragItemId(null);
     setDropIndicator(null);
+    setTreeDragGhost(null);
   };
 
   const handleTreeRowPointerCancel = () => {
@@ -1853,6 +1895,7 @@ export default function Home() {
 
     setTreeDragItemId(null);
     setDropIndicator(null);
+    setTreeDragGhost(null);
   };
 
   const handleExportExcel = async () => {
@@ -2663,7 +2706,7 @@ export default function Home() {
                   onPointerCancel={handleTreeRowPointerCancel}
                   className={`flex h-11 w-full touch-none select-none items-center border-t border-b text-left transition-colors ${backgroundClass} ${dropBorderClass} ${
                     inactiveSubtreeIds.has(item.id) ? "opacity-40" : ""
-                  }`}
+                  } ${treeDragItemId === item.id ? "opacity-30" : ""}`}
                 >
                   <div
                     className="flex w-full items-center gap-2"
@@ -2693,6 +2736,25 @@ export default function Home() {
                 </div>
               );
             })}
+
+            {treeDragGhost && treeDraggedItem && (
+              <div
+                className="pointer-events-none fixed z-50 flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm shadow-xl"
+                style={{
+                  left: treeDragGhost.x - treeDragGhost.width / 2,
+                  top: treeDragGhost.y - treeDragGhost.height / 2,
+                  width: treeDragGhost.width,
+                  transform: "scale(0.97)",
+                  opacity: 0.95,
+                }}
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: treeDraggedItem.color ?? DEFAULT_BAR_COLOR }}
+                />
+                <span className="min-w-0 flex-1 truncate">{treeDraggedItem.name}</span>
+              </div>
+            )}
           </div>
 
           <button

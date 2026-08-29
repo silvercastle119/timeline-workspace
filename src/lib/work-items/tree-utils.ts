@@ -170,9 +170,15 @@ export function getWorkItemDisplayRows(
 ) {
   const childrenByParentId = getChildrenByParentId(workItems);
   const itemIds = new Set(workItems.map((item) => item.id));
-  const roots = workItems.filter(
-    (item) => item.parentId === null || !itemIds.has(item.parentId)
-  );
+  // getChildrenByParentId already sorts every parentId group (including the
+  // implicit root group) by `order` — but roots is re-derived here via a
+  // fresh filter over workItems, which only preserves raw array insertion
+  // order. Without this sort, changing a root item's `order` (e.g. via
+  // drag-and-drop reordering) never affects where it renders, even though
+  // non-root siblings reorder correctly through the sorted map above.
+  const roots = workItems
+    .filter((item) => item.parentId === null || !itemIds.has(item.parentId))
+    .sort((a, b) => a.order - b.order);
   const rows: WorkItemDisplayRow[] = [];
   const visited = new Set<string>();
 
