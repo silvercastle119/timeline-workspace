@@ -1,3 +1,7 @@
+"use client";
+
+import { useT } from "@/lib/i18n/use-t";
+
 type MobileConfirmDialogProps = {
   title: string;
   description?: string;
@@ -11,12 +15,13 @@ type MobileConfirmDialogProps = {
 export function MobileConfirmDialog({
   title,
   description,
-  confirmLabel = "확인",
-  cancelLabel = "취소",
+  confirmLabel,
+  cancelLabel,
   danger,
   onConfirm,
   onCancel,
 }: MobileConfirmDialogProps) {
+  const t = useT();
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
@@ -36,7 +41,7 @@ export function MobileConfirmDialog({
             onClick={onCancel}
             className="rounded-md px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
           >
-            {cancelLabel}
+            {cancelLabel ?? t("취소")}
           </button>
           <button
             type="button"
@@ -45,7 +50,7 @@ export function MobileConfirmDialog({
               danger ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            {confirmLabel}
+            {confirmLabel ?? t("확인")}
           </button>
         </div>
       </div>

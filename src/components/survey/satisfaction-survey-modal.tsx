@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { submitSurveyResponse } from "@/lib/survey/submit-survey-response";
 import { markSurveyDismissed, markSurveySubmitted } from "@/lib/survey/survey-visibility";
+import { useT } from "@/lib/i18n/use-t";
 
 const MODAL_CLOSE_ANIMATION_MS = 180;
 const OPINION_MAX_LENGTH = 500;
@@ -32,6 +33,7 @@ type SatisfactionSurveyModalProps = {
 };
 
 export function SatisfactionSurveyModal({ isOpen, onClose, projectId }: SatisfactionSurveyModalProps) {
+  const t = useT();
   const [isClosing, setIsClosing] = useState(false);
   const [satisfaction, setSatisfaction] = useState<number | null>(null);
   const [helpfulness, setHelpfulness] = useState<number | null>(null);
@@ -126,11 +128,13 @@ export function SatisfactionSurveyModal({ isOpen, onClose, projectId }: Satisfac
         }`}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-zinc-900">만족도 조사</h2>
+          <h2 className="text-base font-semibold text-zinc-900">
+            {t("만족도 조사")}
+          </h2>
           <button
             type="button"
             onClick={handleDismiss}
-            aria-label="만족도 조사 닫기"
+            aria-label={t("만족도 조사 닫기")}
             className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 active:scale-90"
           >
             ✕
@@ -139,14 +143,14 @@ export function SatisfactionSurveyModal({ isOpen, onClose, projectId }: Satisfac
 
         <div className="flex flex-col gap-5 px-5 py-5">
           <RatingField
-            label="전반적으로 얼마나 만족하시나요?"
+            label={t("전반적으로 얼마나 만족하시나요?")}
             options={SATISFACTION_OPTIONS}
             value={satisfaction}
             onChange={setSatisfaction}
           />
 
           <RatingField
-            label="업무에 얼마나 도움이 되었나요?"
+            label={t("업무에 얼마나 도움이 되었나요?")}
             options={HELPFULNESS_OPTIONS}
             value={helpfulness}
             onChange={setHelpfulness}
@@ -154,12 +158,12 @@ export function SatisfactionSurveyModal({ isOpen, onClose, projectId }: Satisfac
 
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-zinc-700">
-              개선 의견 <span className="text-zinc-400">(선택)</span>
+              {t("개선 의견")} <span className="text-zinc-400">{t("(선택)")}</span>
             </span>
             <textarea
               value={opinion}
               onChange={(event) => setOpinion(event.target.value.slice(0, OPINION_MAX_LENGTH))}
-              placeholder="더 나아졌으면 하는 점을 자유롭게 남겨주세요."
+              placeholder={t("더 나아졌으면 하는 점을 자유롭게 남겨주세요.")}
               rows={3}
               className="w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder:text-zinc-400 focus:border-blue-600 focus:outline-none"
             />
@@ -167,7 +171,7 @@ export function SatisfactionSurveyModal({ isOpen, onClose, projectId }: Satisfac
 
           {submitStatus === "error" && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              의견을 보내지 못했습니다. 잠시 후 다시 시도해주세요.
+              {t("의견을 보내지 못했습니다. 잠시 후 다시 시도해주세요.")}
             </p>
           )}
         </div>
@@ -179,7 +183,7 @@ export function SatisfactionSurveyModal({ isOpen, onClose, projectId }: Satisfac
             disabled={submitStatus === "submitting"}
             className="rounded-md px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            나중에 하기
+            {t("나중에 하기")}
           </button>
           <button
             type="button"
@@ -187,7 +191,7 @@ export function SatisfactionSurveyModal({ isOpen, onClose, projectId }: Satisfac
             disabled={!canSubmit || submitStatus === "submitting"}
             className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {submitStatus === "submitting" ? "보내는 중..." : "의견 보내기"}
+            {submitStatus === "submitting" ? t("보내는 중...") : t("의견 보내기")}
           </button>
         </div>
       </div>
@@ -206,6 +210,7 @@ function RatingField({
   value: number | null;
   onChange: (value: number) => void;
 }) {
+  const t = useT();
   return (
     <fieldset>
       <legend className="mb-2 block text-xs font-medium text-zinc-700">{label}</legend>
@@ -232,7 +237,7 @@ function RatingField({
               >
                 {option.value}
               </span>
-              <span className="text-[10px] leading-tight">{option.label}</span>
+              <span className="text-[10px] leading-tight">{t(option.label)}</span>
             </button>
           );
         })}

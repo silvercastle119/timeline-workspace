@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { getMaxTimelineEndDate } from "@/lib/timeline/timeline-validation";
-
-type ProjectSettingsResult = { valid: true } | { valid: false; reason: string };
+import { useT } from "@/lib/i18n/use-t";
+import { translateTimelineRangeError } from "@/lib/i18n/timeline-errors";
+import type { ProjectSettingsResult } from "@/components/mobile/use-mobile-project";
 
 type MobileCreateProjectDialogProps = {
   defaultName: string;
@@ -24,6 +25,7 @@ export function MobileCreateProjectDialog({
   onCreate,
   onCancel,
 }: MobileCreateProjectDialogProps) {
+  const t = useT();
   const [nameDraft, setNameDraft] = useState(defaultName);
   const [startDraft, setStartDraft] = useState(defaultTimelineStart);
   const [endDraft, setEndDraft] = useState(defaultTimelineEnd);
@@ -33,14 +35,14 @@ export function MobileCreateProjectDialog({
     const trimmedName = nameDraft.trim();
 
     if (!trimmedName) {
-      setError("프로젝트명을 입력해주세요.");
+      setError(t("프로젝트명을 입력해주세요."));
       return;
     }
 
     const result = onCreate(trimmedName, startDraft, endDraft);
 
     if (!result.valid) {
-      setError(result.reason);
+      setError(translateTimelineRangeError(result.code, t));
     }
   };
 
@@ -53,10 +55,12 @@ export function MobileCreateProjectDialog({
         onClick={(event) => event.stopPropagation()}
         className="w-full max-w-sm space-y-4 rounded-xl bg-white p-5 shadow-xl"
       >
-        <h2 className="text-base font-semibold text-zinc-900">새 프로젝트 만들기</h2>
+        <h2 className="text-base font-semibold text-zinc-900">
+          {t("새 프로젝트 만들기")}
+        </h2>
 
         <div>
-          <span className="mb-1 block text-xs text-zinc-500">프로젝트명</span>
+          <span className="mb-1 block text-xs text-zinc-500">{t("프로젝트명")}</span>
           <input
             type="text"
             value={nameDraft}
@@ -66,7 +70,7 @@ export function MobileCreateProjectDialog({
         </div>
 
         <div>
-          <span className="mb-1 block text-xs text-zinc-500">전체 Timeline</span>
+          <span className="mb-1 block text-xs text-zinc-500">{t("전체 Timeline")}</span>
           <div className="flex items-center gap-2">
             <input
               type="date"
@@ -93,14 +97,14 @@ export function MobileCreateProjectDialog({
             onClick={onCancel}
             className="rounded-md px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
           >
-            취소
+            {t("취소")}
           </button>
           <button
             type="button"
             onClick={handleCreate}
             className="flex items-center gap-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
-            <span aria-hidden>+</span> 만들기
+            <span aria-hidden>+</span> {t("만들기")}
           </button>
         </div>
       </div>

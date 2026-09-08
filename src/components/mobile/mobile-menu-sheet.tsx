@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { useT } from "@/lib/i18n/use-t";
+import { LanguageSegmentedControl } from "@/components/i18n/language-segmented-control";
 
 type MobileMenuSheetProps = {
   onClose: () => void;
@@ -45,6 +47,7 @@ export function MobileMenuSheet({
   onOpenProjectManagement,
   onOpenFeedback,
 }: MobileMenuSheetProps) {
+  const t = useT();
   // 뒤로가기(제스처/하드웨어)로도 메뉴가 닫히도록 한다. 저장할 상태가
   // 없는 단순 메뉴라 확인 절차 없이 즉시 닫기만 하면 된다.
   useEffect(() => {
@@ -70,11 +73,11 @@ export function MobileMenuSheet({
         className="w-full max-w-xs overflow-hidden rounded-xl bg-white shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-zinc-900">메뉴</h2>
+          <h2 className="text-base font-semibold text-zinc-900">{t("메뉴")}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={t("닫기")}
             className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
           >
             ✕
@@ -91,7 +94,7 @@ export function MobileMenuSheet({
             className="flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50"
           >
             <FolderIcon />
-            프로젝트 관리
+            {t("프로젝트 관리")}
           </button>
           <button
             type="button"
@@ -102,8 +105,15 @@ export function MobileMenuSheet({
             className="flex w-full items-center gap-3 rounded-lg px-3 py-3.5 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50"
           >
             <FeedbackIcon />
-            오류 신고 및 개선 제안
+            {t("오류 신고 및 개선 제안")}
           </button>
+
+          <div className="mt-1 flex items-center justify-between gap-3 border-t border-zinc-100 px-3 pb-1 pt-3">
+            <span className="text-sm font-medium text-zinc-800">
+              {t("언어")}
+            </span>
+            <LanguageSegmentedControl />
+          </div>
         </div>
       </div>
     </div>

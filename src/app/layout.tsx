@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { SITE_URL } from "@/lib/seo/site";
+import { LanguageProvider } from "@/lib/i18n/language-context";
 import "./globals.css";
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -56,7 +57,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
       {GA_MEASUREMENT_ID && (
         <>
           <Script

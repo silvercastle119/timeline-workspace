@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { useT } from "@/lib/i18n/use-t";
 
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 
@@ -27,6 +28,7 @@ function getIsMobileViewportServerSnapshot() {
  * reappears on the next visit/reload while still on a narrow screen.
  */
 export function MobileOptimizedNotice() {
+  const t = useT();
   const isMobile = useSyncExternalStore(
     subscribeToMobileViewport,
     getIsMobileViewport,
@@ -41,20 +43,21 @@ export function MobileOptimizedNotice() {
       <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-base font-semibold text-zinc-900">
-            데스크탑에 최적화된 화면이에요
+            {t("데스크탑에 최적화된 화면이에요")}
           </h2>
           <button
             type="button"
             onClick={() => setDismissed(true)}
-            aria-label="안내 닫기"
+            aria-label={t("안내 닫기")}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 active:scale-90"
           >
             ✕
           </button>
         </div>
         <p className="mt-2 text-sm text-zinc-600">
-          TO-DO-LINE은 아직 모바일 화면을 지원하지 않아요. 태블릿이나 노트북에서
-          이용해주시면 더 편하게 쓰실 수 있습니다.
+          {t(
+            "TO-DO-LINE은 아직 모바일 화면을 지원하지 않아요. 태블릿이나 노트북에서 이용해주시면 더 편하게 쓰실 수 있습니다.",
+          )}
         </p>
         <div className="mt-5 flex justify-end">
           <button
@@ -62,7 +65,7 @@ export function MobileOptimizedNotice() {
             onClick={() => setDismissed(true)}
             className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
           >
-            확인했어요
+            {t("확인했어요")}
           </button>
         </div>
       </div>

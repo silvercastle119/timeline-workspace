@@ -36,9 +36,14 @@ export function getMaxTimelineEndDate(startDate: string): string | null {
   return formatDate(new Date(year + MAX_TIMELINE_YEARS, month - 1, day));
 }
 
+export type TimelineRangeValidationCode =
+  | "invalid-format"
+  | "start-after-end"
+  | "range-too-long";
+
 export type TimelineRangeValidationResult =
   | { valid: true }
-  | { valid: false; reason: string };
+  | { valid: false; code: TimelineRangeValidationCode; reason: string };
 
 export function validateTimelineRange(
   startDate: string,
@@ -47,6 +52,7 @@ export function validateTimelineRange(
   if (!isValidDateString(startDate) || !isValidDateString(endDate)) {
     return {
       valid: false,
+      code: "invalid-format",
       reason: "Timeline 날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)",
     };
   }
@@ -54,6 +60,7 @@ export function validateTimelineRange(
   if (startDate > endDate) {
     return {
       valid: false,
+      code: "start-after-end",
       reason: "Timeline 시작일은 종료일보다 늦을 수 없습니다.",
     };
   }
@@ -63,6 +70,7 @@ export function validateTimelineRange(
   if (maxEndDate !== null && endDate > maxEndDate) {
     return {
       valid: false,
+      code: "range-too-long",
       reason: `Timeline 기간이 너무 깁니다. 최대 ${MAX_TIMELINE_YEARS}년까지 설정할 수 있습니다.`,
     };
   }

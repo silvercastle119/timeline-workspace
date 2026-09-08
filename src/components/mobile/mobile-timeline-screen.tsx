@@ -11,6 +11,13 @@ import {
 } from "@/lib/work-items/tree-utils";
 import { getDatesInRange, getDaysBetween, getTimelineDuration } from "@/lib/timeline/date-utils";
 import { getMobileBarBackground } from "@/components/mobile/mobile-timeline-visuals";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { useT } from "@/lib/i18n/use-t";
+
+const EN_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
 const DAY_WIDTH = 28;
 const NAME_COLUMN_WIDTH = 128;
@@ -21,6 +28,8 @@ const DAY_ROW_HEIGHT = 24;
 export function MobileTimelineScreen() {
   const { project, isLoaded, collapsedItemIds } = useMobileProject();
   const router = useRouter();
+  const { lang } = useLanguage();
+  const t = useT();
 
   const inactiveIds = useMemo(
     () => getInactiveSubtreeIds(project.workItems),
@@ -55,19 +64,24 @@ export function MobileTimelineScreen() {
       if (last && last.key === monthKey) {
         last.dayCount += 1;
       } else {
-        groups.push({ key: monthKey, label: `${Number(date.slice(5, 7))}월`, dayCount: 1 });
+        const monthNumber = Number(date.slice(5, 7));
+        const label =
+          lang === "en"
+            ? EN_MONTHS[monthNumber - 1]
+            : `${monthNumber}월`;
+        groups.push({ key: monthKey, label, dayCount: 1 });
       }
     });
 
     return groups;
-  }, [dates]);
+  }, [dates, lang]);
 
   if (!isLoaded) {
-    return <div className="p-4 text-sm text-zinc-500">불러오는 중...</div>;
+    return <div className="p-4 text-sm text-zinc-500">{t("불러오는 중...")}</div>;
   }
 
   if (rows.length === 0) {
-    return <p className="p-4 text-sm text-zinc-500">등록된 업무가 없습니다.</p>;
+    return <p className="p-4 text-sm text-zinc-500">{t("등록된 업무가 없습니다.")}</p>;
   }
 
   const totalWidth = dates.length * DAY_WIDTH;
@@ -129,7 +143,7 @@ export function MobileTimelineScreen() {
                   <button
                     type="button"
                     onClick={() => router.push(`/m/schedule/${item.id}`)}
-                    aria-label={`${item.name} 설정으로 이동`}
+                    aria-label={t("{name} 설정으로 이동", { name: item.name })}
                     className={`absolute top-1/2 h-5 -translate-y-1/2 rounded ${
                       isFaded ? "opacity-40" : ""
                     }`}

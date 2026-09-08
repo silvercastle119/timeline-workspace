@@ -1,6 +1,9 @@
+"use client";
+
 import type { CSSProperties } from "react";
 import { getDaysBetween, getTimelineDuration } from "@/lib/timeline/date-utils";
 import type { Checkpoint } from "@/types/project";
+import { useT } from "@/lib/i18n/use-t";
 
 type MobileTimelineBarProps = {
   startDate: string | null;
@@ -15,10 +18,11 @@ export function MobileTimelineBar({
   checkpoints,
   background,
 }: MobileTimelineBarProps) {
+  const t = useT();
   if (!startDate || !endDate) {
     return (
       <div className="flex h-8 w-full items-center justify-center rounded-md border border-dashed border-zinc-300 text-xs text-zinc-400">
-        날짜를 설정해주세요
+        {t("날짜를 설정해주세요")}
       </div>
     );
   }

@@ -3,14 +3,22 @@
 // 모바일(/m) 전용 도움말 콘텐츠. PC(src/app/page.tsx)의 GuideKbd/GuideExample/
 // GuideNote/GuideFaqSection 컴포넌트 구조는 재사용하되, 각 탭의 실제 문구는
 // 모바일 화면 구성에 맞춰 작성했다. 길이를 줄이기 위해 관련 있는 항목은
-// 하나의 단계로 묶고, 문장은 짧게 유지했다.
+// 하나의 단계로 묶고, 문장은 짧게 유지했다. ko/en 두 언어를 함께 담는다.
+
+/* eslint-disable react/no-unescaped-entities */
 
 import { useState, type ReactNode } from "react";
+import type { Language } from "@/lib/i18n/language";
 
 type GuideStepContent = {
   number: string;
   title: string;
   body: ReactNode;
+};
+
+type GuideFaqItem = {
+  question: string;
+  answer: ReactNode;
 };
 
 export function GuideKbd({ children }: { children: ReactNode }) {
@@ -69,9 +77,21 @@ function ChevronGlyph() {
   return <span className="text-xs text-zinc-500">▾ / ▸</span>;
 }
 
-export const GUIDE_TABS = ["전체 설명", "요약 설명", "자주 묻는 질문"] as const;
+const B = ({ children }: { children: ReactNode }) => (
+  <b className="text-zinc-900">{children}</b>
+);
 
-export const GUIDE_FULL_STEPS: GuideStepContent[] = [
+export function getMobileGuideTabs(lang: Language): readonly string[] {
+  return lang === "en"
+    ? (["Full guide", "Quick summary", "FAQ"] as const)
+    : (["전체 설명", "요약 설명", "자주 묻는 질문"] as const);
+}
+
+// ---------------------------------------------------------------------------
+// Full guide
+// ---------------------------------------------------------------------------
+
+const GUIDE_FULL_STEPS_KO: GuideStepContent[] = [
   {
     number: "01",
     title: "서비스는 어떻게 구성되어 있나요?",
@@ -82,9 +102,9 @@ export const GUIDE_FULL_STEPS: GuideStepContent[] = [
           서비스입니다.
         </p>
         <ul className="list-disc space-y-1 pl-4">
-          <li><b className="text-zinc-900">목록</b>: 업무 구조와 상세 정보 관리</li>
-          <li><b className="text-zinc-900">Timeline</b>: 전체 업무 일정 확인</li>
-          <li><b className="text-zinc-900">프로젝트 관리</b>: 프로젝트·데이터 관리</li>
+          <li><B>목록</B>: 업무 구조와 상세 정보 관리</li>
+          <li><B>Timeline</B>: 전체 업무 일정 확인</li>
+          <li><B>프로젝트 관리</B>: 프로젝트·데이터 관리</li>
         </ul>
       </>
     ),
@@ -95,17 +115,17 @@ export const GUIDE_FULL_STEPS: GuideStepContent[] = [
     body: (
       <>
         <p>
-          하단 <b className="text-zinc-900">목록</b> 탭에서 업무 구조를
-          확인합니다. <GuideIconChip><ChevronGlyph /></GuideIconChip>로
-          하위 업무를 펼치거나 접을 수 있습니다.
+          하단 <B>목록</B> 탭에서 업무 구조를 확인합니다.{" "}
+          <GuideIconChip><ChevronGlyph /></GuideIconChip>로 하위 업무를 펼치거나
+          접을 수 있습니다.
         </p>
         <p>
           목록 맨 아래 <GuideIconChip>+</GuideIconChip> 버튼으로 업무를
           추가하면(최상위로 생성) 상세 화면으로 바로 이동합니다.
         </p>
         <p>
-          업무를 <GuideIconChip><LongPressGlyph /></GuideIconChip> 길게 눌러
-          끌면 순서를 바꾸거나 다른 업무의 하위로 옮길 수 있습니다.
+          업무를 <GuideIconChip><LongPressGlyph /></GuideIconChip> 길게 눌러 끌면
+          순서를 바꾸거나 다른 업무의 하위로 옮길 수 있습니다.
         </p>
       </>
     ),
@@ -118,29 +138,28 @@ export const GUIDE_FULL_STEPS: GuideStepContent[] = [
         <p>업무를 탭하면 상세 화면에서 다음을 관리합니다.</p>
         <ul className="list-disc space-y-1 pl-4">
           <li>
-            <GuideIconChip><ToggleGlyph /></GuideIconChip>{" "}
-            <b className="text-zinc-900">활성 상태</b> — 끄면 목록·Timeline에
-            흐리게 표시되고 Excel에서도 제외됩니다.
+            <GuideIconChip><ToggleGlyph /></GuideIconChip> <B>활성 상태</B> — 끄면
+            목록·Timeline에 흐리게 표시되고 Excel에서도 제외됩니다.
           </li>
           <li>
-            <GuideIconChip>✎</GuideIconChip> <b className="text-zinc-900">업무명</b>
+            <GuideIconChip>✎</GuideIconChip> <B>업무명</B>
           </li>
           <li>
-            <GuideIconChip>📅</GuideIconChip> <b className="text-zinc-900">일정</b>(시작일/종료일).{" "}
-            날짜가 정해지지 않았다면 <GuideKbd>일정 미정</GuideKbd>으로 둘 수 있습니다.
+            <GuideIconChip>📅</GuideIconChip> <B>일정</B>(시작일/종료일).{" "}
+            날짜가 정해지지 않았다면 <GuideKbd>일정 미정</GuideKbd>으로 둘 수
+            있습니다.
           </li>
           <li>
-            <GuideIconChip>🎨</GuideIconChip> <b className="text-zinc-900">색상</b>
+            <GuideIconChip>🎨</GuideIconChip> <B>색상</B>
           </li>
           <li>
-            <GuideIconChip>📌</GuideIconChip> <b className="text-zinc-900">체크포인트</b>와{" "}
-            <b className="text-zinc-900">메모</b>
+            <GuideIconChip>📌</GuideIconChip> <B>체크포인트</B>와 <B>메모</B>
           </li>
         </ul>
         <p>
           수정 후 <GuideIconChip>✓</GuideIconChip> 저장을 눌러야 반영되고,{" "}
-          <GuideIconChip>✕</GuideIconChip> 취소를 누르면 되돌아갑니다.
-          저장하지 않고 나가려 하면 확인창이 뜹니다.
+          <GuideIconChip>✕</GuideIconChip> 취소를 누르면 되돌아갑니다. 저장하지
+          않고 나가려 하면 확인창이 뜹니다.
         </p>
       </>
     ),
@@ -151,9 +170,9 @@ export const GUIDE_FULL_STEPS: GuideStepContent[] = [
     body: (
       <>
         <p>
-          상위 업무에서 <GuideKbd>하위 일정 자동 반영</GuideKbd>을 켜면 하위
-          업무 중 가장 이른 시작일 ~ 가장 늦은 종료일이 상위 업무 일정으로
-          자동 반영됩니다.
+          상위 업무에서 <GuideKbd>하위 일정 자동 반영</GuideKbd>을 켜면 하위 업무
+          중 가장 이른 시작일 ~ 가장 늦은 종료일이 상위 업무 일정으로 자동
+          반영됩니다.
         </p>
         <GuideExample>{`디자인 (자동 반영 ON)   09.08 ~ 10.02
  ├─ 메인 페이지 디자인   09.08 ~ 09.18
@@ -169,13 +188,13 @@ export const GUIDE_FULL_STEPS: GuideStepContent[] = [
     body: (
       <>
         <p>
-          하단 <b className="text-zinc-900">Timeline</b> 탭에서 모든 업무의
-          일정을 위계 구조 그대로, 월/일 눈금과 함께 확인합니다.
+          하단 <B>Timeline</B> 탭에서 모든 업무의 일정을 위계 구조 그대로, 월/일
+          눈금과 함께 확인합니다.
         </p>
         <p>
           업무 시작·종료 시점, 겹치는 일정, 전체 흐름을 한눈에 파악할 수
-          있습니다. <GuideIconChip>↔</GuideIconChip> 좌우로 스크롤해 전체
-          기간을 볼 수 있고, 막대를 탭하면 해당 업무 상세로 이동합니다.
+          있습니다. <GuideIconChip>↔</GuideIconChip> 좌우로 스크롤해 전체 기간을
+          볼 수 있고, 막대를 탭하면 해당 업무 상세로 이동합니다.
         </p>
       </>
     ),
@@ -191,9 +210,9 @@ export const GUIDE_FULL_STEPS: GuideStepContent[] = [
         </p>
         <p>
           화면 상단의 <GuideIconChip>↶</GuideIconChip>실행취소 /{" "}
-          <GuideIconChip>↷</GuideIconChip>다시실행으로 최근 작업을 되돌리거나
-          다시 적용할 수 있습니다. 단, Excel 가져오기나 프로젝트 전환은
-          되돌릴 수 없습니다.
+          <GuideIconChip>↷</GuideIconChip>다시실행으로 최근 작업을 되돌리거나 다시
+          적용할 수 있습니다. 단, Excel 가져오기나 프로젝트 전환은 되돌릴 수
+          없습니다.
         </p>
       </>
     ),
@@ -235,7 +254,180 @@ export const GUIDE_FULL_STEPS: GuideStepContent[] = [
   },
 ];
 
-export const GUIDE_SUMMARY_STEPS: GuideStepContent[] = [
+const GUIDE_FULL_STEPS_EN: GuideStepContent[] = [
+  {
+    number: "01",
+    title: "How is the app organized?",
+    body: (
+      <>
+        <p>
+          Within a project you create multiple tasks and check and manage the
+          relationships and schedules between them.
+        </p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li><B>List</B>: manage the task structure and details</li>
+          <li><B>Timeline</B>: see the overall task schedule</li>
+          <li><B>Manage projects</B>: manage projects and data</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    number: "02",
+    title: "View, add, and move tasks in the list",
+    body: (
+      <>
+        <p>
+          Check the task structure on the <B>List</B> tab at the bottom. Use{" "}
+          <GuideIconChip><ChevronGlyph /></GuideIconChip> to expand or collapse
+          sub-tasks.
+        </p>
+        <p>
+          Add a task with the <GuideIconChip>+</GuideIconChip> button at the
+          bottom of the list (created at the top level) and you go straight to
+          its detail screen.
+        </p>
+        <p>
+          Press and hold a task with{" "}
+          <GuideIconChip><LongPressGlyph /></GuideIconChip> and drag it to reorder
+          it or move it under another task.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "03",
+    title: "What you can manage in task details",
+    body: (
+      <>
+        <p>Tap a task to manage the following on its detail screen.</p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>
+            <GuideIconChip><ToggleGlyph /></GuideIconChip> <B>Active state</B> —
+            turn it off and the task appears dimmed in the list and Timeline and
+            is excluded from Excel.
+          </li>
+          <li>
+            <GuideIconChip>✎</GuideIconChip> <B>Task name</B>
+          </li>
+          <li>
+            <GuideIconChip>📅</GuideIconChip> <B>Schedule</B> (start/end date). If
+            the dates aren't decided, you can leave it as{" "}
+            <GuideKbd>Schedule TBD</GuideKbd>.
+          </li>
+          <li>
+            <GuideIconChip>🎨</GuideIconChip> <B>Color</B>
+          </li>
+          <li>
+            <GuideIconChip>📌</GuideIconChip> <B>Checkpoints</B> and <B>memo</B>
+          </li>
+        </ul>
+        <p>
+          After editing, press <GuideIconChip>✓</GuideIconChip> Save to apply, or{" "}
+          <GuideIconChip>✕</GuideIconChip> Cancel to revert. If you try to leave
+          without saving, a confirmation appears.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "04",
+    title: "Auto-reflect sub-schedules",
+    body: (
+      <>
+        <p>
+          Turn on <GuideKbd>Auto-reflect sub-schedules</GuideKbd> on a parent
+          task, and the earliest start date ~ latest end date among its sub-tasks
+          is automatically reflected as the parent task's schedule.
+        </p>
+        <GuideExample>{`Design (auto-reflect ON)   09.08 ~ 10.02
+ ├─ Main page design       09.08 ~ 09.18
+ ├─ Sub page design        09.15 ~ 09.25
+ └─ Mobile design          09.22 ~ 10.02`}</GuideExample>
+        <p>This period also shows on the parent task's bar in the Timeline.</p>
+      </>
+    ),
+  },
+  {
+    number: "05",
+    title: "See the whole schedule on the Timeline",
+    body: (
+      <>
+        <p>
+          On the <B>Timeline</B> tab at the bottom, see every task's schedule in
+          its hierarchy, with month/day gridlines.
+        </p>
+        <p>
+          Take in task start and end points, overlapping schedules, and the
+          overall flow at a glance. Scroll left and right with{" "}
+          <GuideIconChip>↔</GuideIconChip> to see the whole period, and tap a bar
+          to go to that task's details.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "06",
+    title: "Save · Cancel · Undo",
+    body: (
+      <>
+        <p>
+          In task details, apply or revert changes with{" "}
+          <GuideIconChip>✓</GuideIconChip> Save / <GuideIconChip>✕</GuideIconChip>{" "}
+          Cancel.
+        </p>
+        <p>
+          Use <GuideIconChip>↶</GuideIconChip> Undo / <GuideIconChip>↷</GuideIconChip>{" "}
+          Redo at the top of the screen to undo or reapply recent actions. Note
+          that Excel imports and project switches can't be undone.
+        </p>
+      </>
+    ),
+  },
+  {
+    number: "07",
+    title: "Manage projects",
+    body: (
+      <>
+        <p>
+          Use <GuideIconChip>☰</GuideIconChip> Menu → Manage projects for the
+          following.
+        </p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>
+            <GuideIconChip>📁</GuideIconChip> My projects — switch to another
+            project
+          </li>
+          <li>Change the project name / overall Timeline period</li>
+          <li>
+            <GuideIconChip>📤</GuideIconChip> Export to Excel /{" "}
+            <GuideIconChip>📥</GuideIconChip> Import from Excel
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    number: "08",
+    title: "AI · Help",
+    body: (
+      <>
+        <p>
+          Use the <GuideIconChip>✨</GuideIconChip> AI button at the bottom for
+          auto schedule fill and project review, and the{" "}
+          <GuideIconChip>?</GuideIconChip> Help button to open this screen any
+          time.
+        </p>
+      </>
+    ),
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Quick summary
+// ---------------------------------------------------------------------------
+
+const GUIDE_SUMMARY_STEPS_KO: GuideStepContent[] = [
   {
     number: "01",
     title: "목록",
@@ -252,23 +444,27 @@ export const GUIDE_SUMMARY_STEPS: GuideStepContent[] = [
     title: "업무 상세",
     body: (
       <>
-        활성·업무명·일정(일정 미정/하위 일정 자동 반영)·색상·체크포인트·메모 수정 후{" "}
-        <GuideIconChip>✓</GuideIconChip> 저장.
+        활성·업무명·일정(일정 미정/하위 일정 자동 반영)·색상·체크포인트·메모 수정
+        후 <GuideIconChip>✓</GuideIconChip> 저장.
       </>
     ),
   },
   {
     number: "03",
     title: "Timeline",
-    body: <>전체 업무 일정을 막대로 확인, <GuideIconChip>↔</GuideIconChip> 좌우 스크롤.</>,
+    body: (
+      <>
+        전체 업무 일정을 막대로 확인, <GuideIconChip>↔</GuideIconChip> 좌우 스크롤.
+      </>
+    ),
   },
   {
     number: "04",
     title: "프로젝트 관리",
     body: (
       <>
-        <GuideIconChip>☰</GuideIconChip> 메뉴에서 프로젝트 전환·설정 변경·
-        Excel 가져오기/내보내기.
+        <GuideIconChip>☰</GuideIconChip> 메뉴에서 프로젝트 전환·설정 변경· Excel
+        가져오기/내보내기.
       </>
     ),
   },
@@ -277,18 +473,73 @@ export const GUIDE_SUMMARY_STEPS: GuideStepContent[] = [
     title: "AI / 도움말",
     body: (
       <>
-        <GuideIconChip>✨</GuideIconChip> AI, <GuideIconChip>?</GuideIconChip> 도움말 — 화면 하단 버튼.
+        <GuideIconChip>✨</GuideIconChip> AI, <GuideIconChip>?</GuideIconChip>{" "}
+        도움말 — 화면 하단 버튼.
       </>
     ),
   },
 ];
 
-type GuideFaqItem = {
-  question: string;
-  answer: ReactNode;
-};
+const GUIDE_SUMMARY_STEPS_EN: GuideStepContent[] = [
+  {
+    number: "01",
+    title: "List",
+    body: (
+      <>
+        View, add (<GuideIconChip>+</GuideIconChip>), and expand/collapse (
+        <GuideIconChip><ChevronGlyph /></GuideIconChip>) tasks. Press and hold (
+        <GuideIconChip><LongPressGlyph /></GuideIconChip>) to move.
+      </>
+    ),
+  },
+  {
+    number: "02",
+    title: "Task details",
+    body: (
+      <>
+        Edit active state, name, schedule (Schedule TBD / auto-reflect
+        sub-schedules), color, checkpoints, and memo, then{" "}
+        <GuideIconChip>✓</GuideIconChip> Save.
+      </>
+    ),
+  },
+  {
+    number: "03",
+    title: "Timeline",
+    body: (
+      <>
+        See every task's schedule as bars; scroll left/right with{" "}
+        <GuideIconChip>↔</GuideIconChip>.
+      </>
+    ),
+  },
+  {
+    number: "04",
+    title: "Manage projects",
+    body: (
+      <>
+        From <GuideIconChip>☰</GuideIconChip> Menu: switch projects, change
+        settings, import/export Excel.
+      </>
+    ),
+  },
+  {
+    number: "05",
+    title: "AI / Help",
+    body: (
+      <>
+        <GuideIconChip>✨</GuideIconChip> AI, <GuideIconChip>?</GuideIconChip> Help
+        — buttons at the bottom of the screen.
+      </>
+    ),
+  },
+];
 
-export const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
+// ---------------------------------------------------------------------------
+// FAQ
+// ---------------------------------------------------------------------------
+
+const GUIDE_FAQ_ITEMS_KO: GuideFaqItem[] = [
   {
     question: "비활성 업무는 어떻게 되나요?",
     answer: (
@@ -306,8 +557,8 @@ export const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
     question: "체크포인트는 무엇인가요?",
     answer: (
       <p>
-        업무 일정 중 중요한 날짜를 별도로 표시해두는 기능입니다. 마감일이나
-        진행 시점을 기록할 때 사용합니다.
+        업무 일정 중 중요한 날짜를 별도로 표시해두는 기능입니다. 마감일이나 진행
+        시점을 기록할 때 사용합니다.
       </p>
     ),
   },
@@ -315,9 +566,8 @@ export const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
     question: "하위 일정 반영을 켜면 Timeline에서는 어떻게 보이나요?",
     answer: (
       <p>
-        하위 업무 중 가장 이른 시작일 ~ 가장 늦은 종료일이 상위 업무의
-        Timeline 막대에 그대로 반영됩니다. 하위 일정을 바꾸면 상위 막대도
-        함께 바뀝니다.
+        하위 업무 중 가장 이른 시작일 ~ 가장 늦은 종료일이 상위 업무의 Timeline
+        막대에 그대로 반영됩니다. 하위 일정을 바꾸면 상위 막대도 함께 바뀝니다.
       </p>
     ),
   },
@@ -325,10 +575,10 @@ export const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
     question: "업무의 위치나 그룹을 바꾸고 싶어요.",
     answer: (
       <p>
-        목록에서 업무를{" "}
-        <GuideIconChip><LongPressGlyph /></GuideIconChip> 길게 눌러 끕니다.
-        대상 행의 위/아래 가장자리에 놓으면 순서만 바뀌고, 가운데에 놓으면
-        그 업무의 하위로 이동합니다. 목록 왼쪽 끝에 놓으면 최상위로 이동합니다.
+        목록에서 업무를 <GuideIconChip><LongPressGlyph /></GuideIconChip> 길게
+        눌러 끕니다. 대상 행의 위/아래 가장자리에 놓으면 순서만 바뀌고, 가운데에
+        놓으면 그 업무의 하위로 이동합니다. 목록 왼쪽 끝에 놓으면 최상위로
+        이동합니다.
       </p>
     ),
   },
@@ -337,17 +587,16 @@ export const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
     answer: (
       <>
         <p>
-          <b className="text-zinc-900">
+          <B>
             반드시 이 서비스에서 내보낸 Excel 파일의 양식을 그대로 사용해야
             합니다.
-          </b>{" "}
+          </B>{" "}
           임의로 만든 파일이나 형식을 바꾼 파일은 정상적으로 처리되지 않을 수
           있습니다.
         </p>
         <p>
-          내보낸 파일에서 날짜·색상·이름·메모·체크포인트·순서·추가삭제를
-          수정해 다시 가져올 수 있으며, 적용 전에 변경 내용을 확인할 수
-          있습니다.
+          내보낸 파일에서 날짜·색상·이름·메모·체크포인트·순서·추가삭제를 수정해
+          다시 가져올 수 있으며, 적용 전에 변경 내용을 확인할 수 있습니다.
         </p>
       </>
     ),
@@ -356,8 +605,8 @@ export const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
     question: "여러 업무를 한 번에 수정하려면 어떻게 하나요?",
     answer: (
       <p>
-        Excel로 내보내 필요한 내용을 수정한 뒤 다시 가져오면 여러 업무를 한
-        번에 관리할 수 있습니다.
+        Excel로 내보내 필요한 내용을 수정한 뒤 다시 가져오면 여러 업무를 한 번에
+        관리할 수 있습니다.
       </p>
     ),
   },
@@ -381,9 +630,134 @@ export const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
   },
   {
     question: "AI 기능은 어디에서 사용할 수 있나요?",
-    answer: <p>화면 하단의 <GuideIconChip>✨</GuideIconChip> AI 버튼을 누르면 됩니다.</p>,
+    answer: (
+      <p>
+        화면 하단의 <GuideIconChip>✨</GuideIconChip> AI 버튼을 누르면 됩니다.
+      </p>
+    ),
   },
 ];
+
+const GUIDE_FAQ_ITEMS_EN: GuideFaqItem[] = [
+  {
+    question: "What happens to inactive tasks?",
+    answer: (
+      <p>
+        They aren't deleted — only the active state is turned off. They appear
+        dimmed in the list and Timeline, and aren't included when exporting to
+        Excel.
+      </p>
+    ),
+  },
+  {
+    question: "Can I undo deleting a task?",
+    answer: (
+      <p>
+        A confirmation appears before deletion, and once deleted it can't be
+        undone.
+      </p>
+    ),
+  },
+  {
+    question: "What is a checkpoint?",
+    answer: (
+      <p>
+        A way to separately mark an important date within a task's schedule. Use
+        it to record a deadline or a progress milestone.
+      </p>
+    ),
+  },
+  {
+    question: "With sub-schedule reflection on, how does it look on the Timeline?",
+    answer: (
+      <p>
+        The earliest start date ~ latest end date among the sub-tasks is
+        reflected directly on the parent task's Timeline bar. Change a
+        sub-schedule and the parent bar changes with it.
+      </p>
+    ),
+  },
+  {
+    question: "I want to change a task's position or group.",
+    answer: (
+      <p>
+        Press and hold a task in the list with{" "}
+        <GuideIconChip><LongPressGlyph /></GuideIconChip> and drag it. Drop it on
+        the top/bottom edge of a target row to only reorder, or on the middle to
+        move it under that task. Drop it at the left edge of the list to move it
+        to the top level.
+      </p>
+    ),
+  },
+  {
+    question: "Anything to watch out for when importing/exporting Excel?",
+    answer: (
+      <>
+        <p>
+          <B>
+            You must use the exact format of an Excel file exported from this
+            service.
+          </B>{" "}
+          A file you make yourself or one whose format has been changed may not
+          be processed correctly.
+        </p>
+        <p>
+          In the exported file you can edit dates, colors, names, memos,
+          checkpoints, order, and additions/deletions and import it again, and
+          you can review the changes before they're applied.
+        </p>
+      </>
+    ),
+  },
+  {
+    question: "How do I edit several tasks at once?",
+    answer: (
+      <p>
+        Export to Excel, edit what you need, and import it again — this lets you
+        manage many tasks at once.
+      </p>
+    ),
+  },
+  {
+    question: "Can the service operators see my schedule information?",
+    answer: (
+      <p>
+        No. Project data is not sent to any server — it is stored only in your
+        browser's local storage (IndexedDB).
+      </p>
+    ),
+  },
+  {
+    question: "Can I use multiple projects?",
+    answer: (
+      <p>
+        Yes. In <GuideIconChip>☰</GuideIconChip> Menu → Manage projects → My
+        projects you can see and switch between your saved projects.
+      </p>
+    ),
+  },
+  {
+    question: "Where can I use the AI features?",
+    answer: (
+      <p>
+        Press the <GuideIconChip>✨</GuideIconChip> AI button at the bottom of the
+        screen.
+      </p>
+    ),
+  },
+];
+
+export function getMobileGuideFullSteps(lang: Language): GuideStepContent[] {
+  return lang === "en" ? GUIDE_FULL_STEPS_EN : GUIDE_FULL_STEPS_KO;
+}
+
+export function getMobileGuideSummarySteps(lang: Language): GuideStepContent[] {
+  return lang === "en" ? GUIDE_SUMMARY_STEPS_EN : GUIDE_SUMMARY_STEPS_KO;
+}
+
+export function getMobileGuideFaqItems(lang: Language): GuideFaqItem[] {
+  return lang === "en" ? GUIDE_FAQ_ITEMS_EN : GUIDE_FAQ_ITEMS_KO;
+}
 
 export function GuideFaqSection({ items }: { items: GuideFaqItem[] }) {
   const [openIndexes, setOpenIndexes] = useState<Set<number>>(new Set());

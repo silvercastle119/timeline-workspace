@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { submitFeedbackReport, type FeedbackType } from "@/lib/feedback/submit-feedback-report";
+import { useT } from "@/lib/i18n/use-t";
 
 const MODAL_CLOSE_ANIMATION_MS = 180;
 const SUCCESS_DISPLAY_MS = 1400;
@@ -19,6 +20,7 @@ type FeedbackReportModalProps = {
 };
 
 export function FeedbackReportModal({ isOpen, onClose, projectId }: FeedbackReportModalProps) {
+  const t = useT();
   const [isClosing, setIsClosing] = useState(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType | null>(null);
   const [content, setContent] = useState("");
@@ -113,11 +115,13 @@ export function FeedbackReportModal({ isOpen, onClose, projectId }: FeedbackRepo
         }`}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-zinc-900">오류 신고 · 개선 제안</h2>
+          <h2 className="text-base font-semibold text-zinc-900">
+            {t("오류 신고 · 개선 제안")}
+          </h2>
           <button
             type="button"
             onClick={requestClose}
-            aria-label="피드백 닫기"
+            aria-label={t("피드백 닫기")}
             className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 active:scale-90"
           >
             ✕
@@ -127,7 +131,7 @@ export function FeedbackReportModal({ isOpen, onClose, projectId }: FeedbackRepo
         {submitStatus === "success" ? (
           <div className="flex flex-col items-center gap-1 px-5 py-12 text-center">
             <p className="text-sm font-medium text-zinc-900">
-              소중한 의견을 보내주셔서 감사합니다.
+              {t("소중한 의견을 보내주셔서 감사합니다.")}
             </p>
           </div>
         ) : (
@@ -137,7 +141,9 @@ export function FeedbackReportModal({ isOpen, onClose, projectId }: FeedbackRepo
 
               <label className="block">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-700">내용</span>
+                  <span className="text-xs font-medium text-zinc-700">
+                    {t("내용")}
+                  </span>
                   <span className="text-xs text-zinc-400">
                     {content.length} / {CONTENT_MAX_LENGTH}
                   </span>
@@ -147,7 +153,9 @@ export function FeedbackReportModal({ isOpen, onClose, projectId }: FeedbackRepo
                   onChange={(event) =>
                     setContent(event.target.value.slice(0, CONTENT_MAX_LENGTH))
                   }
-                  placeholder="불편했던 점이나 개선되었으면 하는 점을 자유롭게 적어주세요."
+                  placeholder={t(
+                    "불편했던 점이나 개선되었으면 하는 점을 자유롭게 적어주세요.",
+                  )}
                   rows={5}
                   className="w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-800 placeholder:text-zinc-400 focus:border-blue-600 focus:outline-none"
                 />
@@ -155,7 +163,7 @@ export function FeedbackReportModal({ isOpen, onClose, projectId }: FeedbackRepo
 
               {submitStatus === "error" && (
                 <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-                  전송에 실패했습니다. 잠시 후 다시 시도해주세요.
+                  {t("전송에 실패했습니다. 잠시 후 다시 시도해주세요.")}
                 </p>
               )}
             </div>
@@ -167,7 +175,7 @@ export function FeedbackReportModal({ isOpen, onClose, projectId }: FeedbackRepo
                 disabled={submitStatus === "submitting"}
                 className="rounded-md px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                취소
+                {t("취소")}
               </button>
               <button
                 type="button"
@@ -175,7 +183,7 @@ export function FeedbackReportModal({ isOpen, onClose, projectId }: FeedbackRepo
                 disabled={!canSubmit || submitStatus === "submitting"}
                 className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {submitStatus === "submitting" ? "제출 중..." : "제출하기"}
+                {submitStatus === "submitting" ? t("제출 중...") : t("제출하기")}
               </button>
             </div>
           </>
@@ -192,10 +200,17 @@ function FeedbackTypeField({
   value: FeedbackType | null;
   onChange: (value: FeedbackType) => void;
 }) {
+  const t = useT();
   return (
     <fieldset>
-      <legend className="mb-2 block text-xs font-medium text-zinc-700">유형</legend>
-      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="피드백 유형">
+      <legend className="mb-2 block text-xs font-medium text-zinc-700">
+        {t("유형")}
+      </legend>
+      <div
+        className="grid grid-cols-3 gap-1.5"
+        role="radiogroup"
+        aria-label={t("피드백 유형")}
+      >
         {FEEDBACK_TYPE_OPTIONS.map((option) => {
           const selected = value === option;
           return (
@@ -211,7 +226,7 @@ function FeedbackTypeField({
                   : "border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:bg-zinc-50"
               }`}
             >
-              {option}
+              {t(option)}
             </button>
           );
         })}

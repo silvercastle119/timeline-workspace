@@ -23,7 +23,11 @@ import {
   rebalanceSiblingOrders,
   sanitizeAutoTimelineFlags,
 } from "@/lib/work-items/tree-utils";
-import { validateTimelineRange } from "@/lib/timeline/timeline-validation";
+import {
+  validateTimelineRange,
+  type TimelineRangeValidationCode,
+} from "@/lib/timeline/timeline-validation";
+import { useT, type TranslateFn } from "@/lib/i18n/use-t";
 import type { Project, WorkItem } from "@/types/project";
 import type { DropIndicator } from "@/components/mobile/mobile-tree-drag";
 
@@ -35,7 +39,9 @@ function getLocalDateString(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function createDefaultMobileProject(): Project {
+const identityTranslate: TranslateFn = (source) => source;
+
+function createDefaultMobileProject(t: TranslateFn = identityTranslate): Project {
   const timelineStartDate = new Date();
   const timelineStart = getLocalDateString(timelineStartDate);
   const timelineEndDate = new Date(timelineStartDate);
@@ -43,7 +49,7 @@ function createDefaultMobileProject(): Project {
 
   return {
     id: crypto.randomUUID(),
-    name: "새 프로젝트",
+    name: t("새 프로젝트"),
     timelineStart,
     timelineEnd: getLocalDateString(timelineEndDate),
     workItems: [],
@@ -51,7 +57,9 @@ function createDefaultMobileProject(): Project {
   };
 }
 
-type ProjectSettingsResult = { valid: true } | { valid: false; reason: string };
+export type ProjectSettingsResult =
+  | { valid: true }
+  | { valid: false; code: TimelineRangeValidationCode };
 
 type MobileProjectContextValue = {
   project: Project;
@@ -94,6 +102,7 @@ export function MobileProjectProvider({ children }: { children: ReactNode }) {
     canUndo,
     canRedo,
   } = useHistoryState<Project>(createDefaultMobileProject);
+  const t = useT();
   const [isLoaded, setIsLoaded] = useState(false);
   // 목록(/m)과 Timeline(/m/timeline)이 같은 (tabs)/layout.tsx 아래에서
   // 유지되므로, 여기 두면 두 화면이 자연히 같은 펼침/접힘 상태를 공유한다.
@@ -111,7 +120,7 @@ export function MobileProjectProvider({ children }: { children: ReactNode }) {
       if (loaded) {
         resetState(loaded);
       } else {
-        const defaultProject = createDefaultMobileProject();
+        const defaultProject = createDefaultMobileProject(t);
 
         resetState(defaultProject);
         saveProject(defaultProject).catch(() => {});
@@ -163,14 +172,14 @@ export function MobileProjectProvider({ children }: { children: ReactNode }) {
 
       updateWorkItems((items) => {
         const order = getNextSiblingOrder(items, parentId);
-        const newItem = createWorkItem({ id, name: "새 업무", parentId, order });
+        const newItem = createWorkItem({ id, name: t("새 업무"), parentId, order });
 
         return [...items, newItem];
       });
 
       return id;
     },
-    [updateWorkItems]
+    [updateWorkItems, t]
   );
 
   // PC confirmDeleteWorkItem(page.tsx:1651)과 동일: 본인+모든 하위 항목 삭제.
@@ -252,7 +261,7 @@ export function MobileProjectProvider({ children }: { children: ReactNode }) {
     (name: string, timelineStart: string, timelineEnd: string): ProjectSettingsResult => {
       const rangeCheck = validateTimelineRange(timelineStart, timelineEnd);
 
-      if (!rangeCheck.valid) return rangeCheck;
+      if (!rangeCheck.valid) return { valid: false, code: rangeCheck.code };
 
       setProject((current) => ({ ...current, name, timelineStart, timelineEnd }));
 
@@ -282,7 +291,7 @@ export function MobileProjectProvider({ children }: { children: ReactNode }) {
     (name: string, timelineStart: string, timelineEnd: string): ProjectSettingsResult => {
       const rangeCheck = validateTimelineRange(timelineStart, timelineEnd);
 
-      if (!rangeCheck.valid) return rangeCheck;
+      if (!rangeCheck.valid) return { valid: false, code: rangeCheck.code };
 
       switchToProject({
         id: crypto.randomUUID(),
