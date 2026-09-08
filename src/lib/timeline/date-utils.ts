@@ -74,14 +74,16 @@ export function addDays(
   return `${year}-${month}-${day}`;
 }
 
-const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const WEEKDAY_LABELS_KO = ["일", "월", "화", "수", "목", "금", "토"];
+const WEEKDAY_LABELS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function getDayOfWeek(dateString: string) {
   return parseDate(dateString).getDay();
 }
 
-export function getWeekdayLabel(dateString: string) {
-  return WEEKDAY_LABELS[getDayOfWeek(dateString)];
+export function getWeekdayLabel(dateString: string, lang: "ko" | "en" = "ko") {
+  const labels = lang === "en" ? WEEKDAY_LABELS_EN : WEEKDAY_LABELS_KO;
+  return labels[getDayOfWeek(dateString)];
 }
 
 export function isSaturday(dateString: string) {

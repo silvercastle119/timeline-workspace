@@ -15,6 +15,7 @@ import {
   getWorkItemDisplayRows,
 } from "@/lib/work-items/tree-utils";
 import { DEFAULT_BAR_COLOR } from "@/lib/work-items/color-utils";
+import { useT } from "@/lib/i18n/use-t";
 
 const HOLD_MS = 350;
 const MOVE_PX = 8;
@@ -52,6 +53,7 @@ export function MobileHierarchyScreen() {
   const [ghost, setGhost] = useState<GhostState | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const router = useRouter();
+  const t = useT();
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const pressRef = useRef<PressState | null>(null);
@@ -230,7 +232,7 @@ export function MobileHierarchyScreen() {
   };
 
   if (!isLoaded) {
-    return <div className="p-4 text-sm text-zinc-500">불러오는 중...</div>;
+    return <div className="p-4 text-sm text-zinc-500">{t("불러오는 중...")}</div>;
   }
 
   return (
@@ -240,7 +242,7 @@ export function MobileHierarchyScreen() {
       )}
 
       {displayRows.length === 0 ? (
-        <p className="p-4 text-sm text-zinc-500">등록된 업무가 없습니다.</p>
+        <p className="p-4 text-sm text-zinc-500">{t("등록된 업무가 없습니다.")}</p>
       ) : (
         displayRows.map(({ item, depth, hasChildren }) => {
           const isDropTarget =
@@ -280,7 +282,7 @@ export function MobileHierarchyScreen() {
                       event.stopPropagation();
                       toggleCollapsedItem(item.id);
                     }}
-                    aria-label={collapsedItemIds.has(item.id) ? "펼치기" : "접기"}
+                    aria-label={collapsedItemIds.has(item.id) ? t("펼치기") : t("접기")}
                     className="absolute -inset-3 flex items-center justify-center text-2xl text-zinc-400"
                   >
                     {collapsedItemIds.has(item.id) ? "▸" : "▾"}
@@ -310,7 +312,7 @@ export function MobileHierarchyScreen() {
         onClick={handleAddWorkItem}
         className="flex w-full items-center justify-center gap-1 border-t border-zinc-100 py-3.5 text-sm text-zinc-500 hover:bg-zinc-50 hover:text-blue-600"
       >
-        + 업무 추가
+        {t("+ 업무 추가")}
       </button>
 
       {ghost && (

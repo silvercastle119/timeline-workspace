@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addDays,
   getDatesInRange,
@@ -55,6 +55,18 @@ import { SatisfactionSurveyModal } from "@/components/survey/satisfaction-survey
 import { canShowSurvey } from "@/lib/survey/survey-visibility";
 import { MobileOptimizedNotice } from "@/components/mobile/mobile-optimized-notice";
 import { FeedbackReportModal } from "@/components/feedback/feedback-report-modal";
+import { LanguageSegmentedControl } from "@/components/i18n/language-segmented-control";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { useT, type TranslateFn } from "@/lib/i18n/use-t";
+import { readStoredLanguage } from "@/lib/i18n/language";
+import { translateTimelineRangeError } from "@/lib/i18n/timeline-errors";
+import {
+  GuideFaqSection,
+  getGuideFaqItems,
+  getGuideFullSteps,
+  getGuideSummarySteps,
+  getGuideTabs,
+} from "@/lib/i18n/guide-content";
 
 const DEFAULT_DAY_WIDTH = 40;
 const MIN_DAY_WIDTH = 20;
@@ -66,624 +78,44 @@ const BAR_CLICK_MOVE_PX = 4;
 const ROOT_ZONE_PX = 24;
 const AUTO_UNDECIDED_MEMO = "일정 미정";
 
-type GuideStepContent = {
-  number: string;
-  title: string;
-  body: ReactNode;
-};
+const identityTranslate: TranslateFn = (source) => source;
 
-function GuideKbd({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-md border border-zinc-300 bg-zinc-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-zinc-700 shadow-sm">
-      {children}
-    </span>
-  );
+function createInitialWorkItems(t: TranslateFn = identityTranslate): WorkItem[] {
+  return [
+    createWorkItem({
+      id: "001",
+      name: t("디지털마케팅"),
+      parentId: null,
+      order: 1000,
+      startDate: "2026-09-01",
+      endDate: "2026-09-20",
+    }),
+    createWorkItem({
+      id: "002",
+      name: t("시장조사"),
+      parentId: "001",
+      order: 1000,
+      startDate: "2026-09-01",
+      endDate: "2026-09-05",
+    }),
+    createWorkItem({
+      id: "003",
+      name: t("기획"),
+      parentId: "001",
+      order: 2000,
+      startDate: "2026-09-04",
+      endDate: "2026-09-12",
+    }),
+    createWorkItem({
+      id: "004",
+      name: t("디자인"),
+      parentId: "001",
+      order: 3000,
+      startDate: "2026-09-10",
+      endDate: "2026-09-20",
+    }),
+  ];
 }
-
-function GuideExample({ children }: { children: ReactNode }) {
-  return (
-    <pre className="mt-1.5 overflow-x-auto whitespace-pre rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-zinc-600">
-      {children}
-    </pre>
-  );
-}
-
-function GuideNote({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-      {children}
-    </div>
-  );
-}
-
-const GUIDE_TABS = ["전체 설명", "요약 설명", "자주 묻는 질문"] as const;
-
-const GUIDE_FULL_STEPS: GuideStepContent[] = [
-  {
-    number: "01",
-    title: "프로젝트를 시작하세요",
-    body: (
-      <>
-        <p>
-          <b className="text-zinc-900">프로젝트명 설정</b>
-          <br />
-          화면 왼쪽 상단의 <b className="text-zinc-900">프로젝트명 옆</b>{" "}
-          <GuideKbd>✎</GuideKbd> <b className="text-zinc-900">아이콘</b>을
-          클릭하여 프로젝트명을 설정합니다.
-        </p>
-        <p>
-          <b className="text-zinc-900">전체 Timeline 설정</b>
-          <br />
-          프로젝트명 아래 <GuideKbd>Timeline:</GuideKbd>{" "}
-          <b className="text-zinc-900">옆</b> <GuideKbd>✎</GuideKbd>{" "}
-          <b className="text-zinc-900">아이콘</b>을 클릭하여 프로젝트가
-          진행되는 전체 기간을 설정합니다.
-        </p>
-        <p>설정한 기간이 화면 상단 Timeline의 전체 범위가 됩니다.</p>
-      </>
-    ),
-  },
-  {
-    number: "02",
-    title: "프로젝트의 업무 구조를 입력하세요",
-    body: (
-      <>
-        <p>
-          화면 <b className="text-zinc-900">왼쪽 하단의</b>{" "}
-          <GuideKbd>+ 항목 추가</GuideKbd> <b className="text-zinc-900">버튼</b>
-          을 클릭하여 프로젝트에서 진행할 주요 업무를 구성합니다.
-        </p>
-        <p>예를 들어 홈페이지 리뉴얼 프로젝트라면:</p>
-        <GuideExample>{`기획
-디자인
-개발
-콘텐츠 제작
-QA
-오픈`}</GuideExample>
-        <p>과 같이 프로젝트의 주요 업무를 입력할 수 있습니다.</p>
-        <p>
-          이 단계에서는 각각의 업무에 세부 일정을 입력하기보다,{" "}
-          <b className="text-zinc-900">
-            프로젝트에서 어떤 업무를 어떤 구조로 진행할 것인지 구성하는 것
-          </b>
-          에 집중합니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    number: "03",
-    title: "각 업무의 세부 업무를 추가하세요",
-    body: (
-      <>
-        <p>
-          먼저 <b className="text-zinc-900">왼쪽 Work Items에서 세부 업무를 추가할 상위 업무를 클릭</b>합니다.
-        </p>
-        <p>그러면 오른쪽에 Work Item 상세 패널이 열립니다.</p>
-        <p>
-          상세 패널 하단의 <GuideKbd>+ 하위 항목 추가</GuideKbd>{" "}
-          <b className="text-zinc-900">버튼</b>을 클릭하여 필요한 세부 업무를
-          추가합니다.
-        </p>
-        <p>
-          예를 들어 <GuideKbd>디자인</GuideKbd>을 선택했다면:
-        </p>
-        <GuideExample>{`디자인
- ├─ 메인 페이지 디자인
- ├─ 서브 페이지 디자인
- └─ 모바일 디자인`}</GuideExample>
-        <p>처럼 구성할 수 있습니다.</p>
-        <p>
-          같은 방법으로 <GuideKbd>개발</GuideKbd>을 선택하여:
-        </p>
-        <GuideExample>{`개발
- ├─ 프론트엔드 개발
- ├─ CMS 연동
- └─ 반응형 대응`}</GuideExample>
-        <p>과 같이 세부 업무를 추가할 수 있습니다.</p>
-        <p>즉,</p>
-        <GuideNote>
-          <b className="text-zinc-900">상위 업무 클릭 → 우측 상세 패널 →{" "}
-          <GuideKbd>+ 하위 항목 추가</GuideKbd></b>
-        </GuideNote>
-        <p>순서로 세부 업무를 추가합니다.</p>
-      </>
-    ),
-  },
-  {
-    number: "04",
-    title: "각 업무의 일정을 설정하세요",
-    body: (
-      <>
-        <p>일정을 입력할 Work Item을 클릭합니다.</p>
-        <p>
-          오른쪽 상세 패널에서 <GuideKbd>시작일</GuideKbd>과{" "}
-          <GuideKbd>종료일</GuideKbd>을 설정합니다.
-        </p>
-        <p>입력한 일정은 Timeline에 막대로 표시됩니다.</p>
-      </>
-    ),
-  },
-  {
-    number: "05",
-    title: "체크포인트",
-    body: (
-      <>
-        <p>
-          일정 중 특정 날짜를 중요한 시점으로 표시할 수 있습니다.
-        </p>
-        <p>
-          체크포인트가 지정된 날짜는{" "}
-          <b className="text-zinc-900">진한 색상과 굵은 글씨</b>로 표시됩니다.
-        </p>
-        <p>
-          여러 날짜를 체크포인트로 지정할 수 있으며, 일정의 시작·중간·종료
-          시점 어디에든 설정할 수 있습니다.
-        </p>
-        <p>
-          일정이 설정된 Work Item을 클릭한 뒤 우측 상세 패널의{" "}
-          <GuideKbd>+ 체크포인트 추가</GuideKbd>{" "}
-          <b className="text-zinc-900">버튼</b>을 클릭하여 체크포인트를
-          추가할 수 있습니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    number: "06",
-    title: "Timeline의 막대를 직접 조정하세요",
-    body: (
-      <>
-        <p>
-          Timeline에 표시된 일정 막대를 직접 드래그하여 일정을 조정할 수
-          있습니다.
-        </p>
-        <p>
-          <b className="text-zinc-900">막대 전체를 이동하기</b>
-          <br />
-          막대의 가운데 부분을 잡고 드래그하면{" "}
-          <b className="text-zinc-900">업무의 시작일과 종료일을 함께 이동</b>
-          할 수 있습니다.
-        </p>
-        <p>
-          <b className="text-zinc-900">업무 기간을 늘리거나 줄이기</b>
-          <br />
-          막대의 <b className="text-zinc-900">왼쪽 또는 오른쪽 끝부분을 잡고 드래그</b>
-          하면 업무 기간을 조정할 수 있습니다.
-        </p>
-        <ul className="list-disc space-y-1 pl-4">
-          <li>왼쪽 끝 → 시작일 변경</li>
-          <li>오른쪽 끝 → 종료일 변경</li>
-        </ul>
-        <p>
-          따라서 날짜를 직접 입력하지 않아도 Timeline을 보면서 업무의 위치와
-          기간을 직관적으로 조정할 수 있습니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    number: "07",
-    title: "하위 일정 자동 반영을 사용하세요",
-    body: (
-      <>
-        <p>
-          상위 업무의 상세 패널에서 <GuideKbd>하위 일정 자동 반영</GuideKbd>{" "}
-          체크박스를 선택하면 하위 업무의 일정에 따라 상위 업무의 일정이
-          반영됩니다.
-        </p>
-        <p>예를 들어:</p>
-        <GuideExample>{`디자인
- ├─ 메인 페이지 디자인   09.08 ~ 09.18
- ├─ 서브 페이지 디자인   09.15 ~ 09.25
- └─ 모바일 디자인        09.22 ~ 10.02`}</GuideExample>
-        <p>
-          이 경우 가장 먼저 시작하는 하위 업무가 <b className="text-zinc-900">09.08</b>,
-          가장 늦게 끝나는 하위 업무가 <b className="text-zinc-900">10.02</b>이므로,
-        </p>
-        <GuideNote>
-          <b className="text-zinc-900">디자인: 09.08 ~ 10.02</b>
-        </GuideNote>
-        <p>로 상위 업무의 일정이 자동으로 반영됩니다.</p>
-        <p>
-          즉, <b className="text-zinc-900">상위 업무의 시작일은 하위 업무 중 가장 이른 시작일</b>,{" "}
-          <b className="text-zinc-900">종료일은 가장 늦은 종료일</b>을 기준으로
-          설정됩니다.
-        </p>
-        <p>
-          이를 통해 하위 업무의 일정만 관리해도 상위 업무가 차지하는{" "}
-          <b className="text-zinc-900">전체 작업 기간을 자동으로 확인</b>할 수
-          있습니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    number: "08",
-    title: "일정이 정해지지 않은 업무는 '일정 미정'으로 관리하세요",
-    body: (
-      <>
-        <p>
-          아직 일정이 확정되지 않은 업무는 날짜를 입력하지 않고{" "}
-          <GuideKbd>일정 미정</GuideKbd>으로 관리할 수 있습니다.
-        </p>
-        <p>
-          해당 Work Item을 클릭한 뒤 우측 상세 패널의{" "}
-          <GuideKbd>일정 미정</GuideKbd> <b className="text-zinc-900">체크박스</b>
-          를 선택합니다.
-        </p>
-        <p>
-          업무 구조에는 포함하면서 일정이 아직 확정되지 않은 업무를 별도로
-          관리할 수 있습니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    number: "09",
-    title: "전체적인 프로젝트 흐름을 확인하세요",
-    body: (
-      <>
-        <p>
-          업무와 일정을 모두 입력했다면 Timeline을 통해 프로젝트 전체 흐름을
-          확인합니다.
-        </p>
-        <p>
-          왼쪽에서는 <b className="text-zinc-900">업무의 구조와 위계</b>를,
-          오른쪽에서는 <b className="text-zinc-900">업무의 시간적 흐름</b>을
-          확인할 수 있습니다.
-        </p>
-        <p>Timeline을 통해 다음과 같은 내용을 한눈에 파악할 수 있습니다.</p>
-        <ul className="list-disc space-y-1 pl-4">
-          <li>어떤 업무가 언제 시작하고 끝나는지</li>
-          <li>어떤 업무가 동시에 진행되는지</li>
-          <li>특정 기간에 업무가 집중되어 있는지</li>
-          <li>업무가 어떤 순서로 이어지는지</li>
-          <li>프로젝트 전체 일정이 적절하게 구성되어 있는지</li>
-        </ul>
-        <p>
-          필요하다면 Timeline의 막대를 다시 드래그하거나 상세 패널에서
-          시작일과 종료일을 수정하여 일정을 조정할 수 있습니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    number: "10",
-    title: "프로젝트를 Excel로 내보내세요",
-    body: (
-      <>
-        <p>
-          프로젝트의 업무와 일정 구성을 완료했다면 화면{" "}
-          <b className="text-zinc-900">오른쪽 상단의</b>{" "}
-          <GuideKbd>Excel로 내보내기</GuideKbd> <b className="text-zinc-900">버튼</b>을
-          클릭합니다.
-        </p>
-        <p>
-          현재 TO-DO-LINE에서 관리하고 있는 프로젝트 데이터를 Excel 파일로
-          내보낼 수 있습니다.
-        </p>
-        <p>
-          내보낸 Excel은 프로젝트 자료 보관이나 업무 및 일정 공유 등에 활용할
-          수 있습니다.
-        </p>
-      </>
-    ),
-  },
-];
-
-const GUIDE_SUMMARY_STEPS: GuideStepContent[] = [
-  {
-    number: "01",
-    title: "프로젝트 설정",
-    body: (
-      <>
-        프로젝트명 옆 <GuideKbd>✎</GuideKbd> → 프로젝트명 설정 / Timeline 옆{" "}
-        <GuideKbd>✎</GuideKbd> → 전체 기간 설정
-      </>
-    ),
-  },
-  {
-    number: "02",
-    title: "업무 구조 입력",
-    body: (
-      <>
-        왼쪽 하단 <GuideKbd>+ 항목 추가</GuideKbd> → 주요 업무 구성
-      </>
-    ),
-  },
-  {
-    number: "03",
-    title: "세부 업무 추가",
-    body: (
-      <>
-        상위 업무 선택 → 우측 상세 패널 <GuideKbd>+ 하위 항목 추가</GuideKbd>
-      </>
-    ),
-  },
-  {
-    number: "04",
-    title: "일정 설정",
-    body: (
-      <>
-        Work Item 선택 → <GuideKbd>시작일</GuideKbd> /{" "}
-        <GuideKbd>종료일</GuideKbd> 설정
-      </>
-    ),
-  },
-  {
-    number: "05",
-    title: "체크포인트",
-    body: (
-      <>
-        일정 상세 패널의 <GuideKbd>+ 체크포인트 추가</GuideKbd> →
-        특정 날짜를 진한 색상·굵은 글씨로 강조
-      </>
-    ),
-  },
-  {
-    number: "06",
-    title: "Timeline 조정",
-    body: <>막대 전체를 드래그하여 이동하거나 양끝을 드래그하여 기간 조정</>,
-  },
-  {
-    number: "07",
-    title: "하위 일정 자동 반영",
-    body: (
-      <>
-        <GuideKbd>하위 일정 자동 반영</GuideKbd> 선택 → 하위 업무 일정에 따라
-        상위 업무 일정 반영
-      </>
-    ),
-  },
-  {
-    number: "08",
-    title: "일정 미정",
-    body: (
-      <>
-        <GuideKbd>일정 미정</GuideKbd> 선택 → 아직 날짜가 정해지지 않은 업무
-        관리
-      </>
-    ),
-  },
-  {
-    number: "09",
-    title: "전체 흐름 확인",
-    body: <>Timeline에서 업무 구조와 시간 흐름 확인</>,
-  },
-  {
-    number: "10",
-    title: "Excel Export",
-    body: (
-      <>
-        오른쪽 상단 <GuideKbd>Excel로 내보내기</GuideKbd> 클릭
-      </>
-    ),
-  },
-];
-
-type GuideFaqItem = {
-  question: string;
-  answer: ReactNode;
-};
-
-const GUIDE_FAQ_ITEMS: GuideFaqItem[] = [
-  {
-    question: "여러 막대를 한 번에 수정하려면 어떻게 하나요?",
-    answer: (
-      <>
-        <p>
-          여러 업무의 일정이나 정보를 한꺼번에 수정해야 하는 경우 Excel을
-          활용할 수 있습니다.
-        </p>
-        <p>
-          TO-DO-LINE에서 <GuideKbd>Excel로 내보내기</GuideKbd>한 뒤 필요한
-          내용을 수정하고 <GuideKbd>Excel 불러오기</GuideKbd>로 다시
-          가져오는 방식으로 여러 업무의 데이터를 한 번에 관리할 수 있습니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    question: "이미 만든 Excel을 다시 수정하고 싶어요.",
-    answer: (
-      <>
-        <p>
-          가장 편리한 방법은 TO-DO-LINE에서 내보낸 Excel의 구조를 그대로
-          사용하는 것입니다.
-        </p>
-        <p>
-          기존에 TO-DO-LINE에서 <GuideKbd>Excel로 내보내기</GuideKbd>한
-          파일을 열어 필요한 업무나 일정 데이터를 수정한 뒤{" "}
-          <GuideKbd>Excel 불러오기</GuideKbd>로 다시 가져오면 됩니다.
-        </p>
-        <p>
-          TO-DO-LINE에서 Export한 Excel은 서비스에서 사용하는 데이터 구조를
-          이미 갖추고 있기 때문에, 새로운 Excel 파일을 처음부터 만드는 것보다
-          기존 Export 파일을 수정하는 것이 편리합니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    question: "업무의 위치를 바꾸고 싶어요.",
-    answer: (
-      <>
-        <p>
-          Work Item의 위치를 변경하여 프로젝트의 업무 구조를 정리할 수
-          있습니다.
-        </p>
-        <p>
-          업무의 위치를 변경하면 동일한 그룹 안에서 업무의 순서를 조정하거나,
-          다른 그룹으로 업무를 이동할 수 있습니다.
-        </p>
-        <p>
-          왼쪽 Work Items 목록에서 옮기려는 업무를 눌러 원하는 위치로
-          드래그합니다. 대상 업무 행의 위쪽에 놓으면 그 업무 위로, 아래쪽에
-          놓으면 그 업무 아래로 순서가 바뀝니다. 목록의 왼쪽 가장자리에 놓으면
-          해당 업무가 최상위로 이동합니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    question: "업무를 다른 그룹으로 옮기고 싶어요.",
-    answer: (
-      <>
-        <p>업무를 다른 상위 업무 아래로 이동하여 업무의 그룹을 변경할 수 있습니다.</p>
-        <p>
-          예를 들어 기존에 <GuideKbd>기획</GuideKbd> 아래에 있던 업무를{" "}
-          <GuideKbd>디자인</GuideKbd> 아래로 이동하면 해당 업무의 상위 그룹이
-          변경됩니다.
-        </p>
-        <p>
-          이동할 업무를 눌러 원하는 상위 업무 행의 가운데 부분에 드래그하여
-          놓으면 그 업무의 하위 항목으로 이동합니다. 업무의 위치를 변경할
-          때는 대상 행의 위쪽/아래쪽 가장자리(순서만 변경)와 가운데
-          (상위 그룹 변경)를 구분해서 놓아야 합니다.
-        </p>
-      </>
-    ),
-  },
-  {
-    question: "일정 정보 데이터를 플랫폼 운영 측에서 열람하나요?",
-    answer: (
-      <p>
-        TO-DO-LINE의 프로젝트 데이터는 별도의 서버로 전송되지 않고, 사용
-        중인 브라우저의 로컬 저장소(IndexedDB)에만 저장됩니다. 따라서
-        플랫폼 운영 측에서 해당 데이터를 열람할 수 없습니다.
-      </p>
-    ),
-  },
-  {
-    question: "Timeline에서 업무 일정을 직접 옮길 수 있나요?",
-    answer: (
-      <p>
-        네. Timeline의 일정 막대를 직접 드래그할 수 있습니다. 막대 전체를
-        잡고 드래그하면 일정 전체가 이동하고, 막대의 양끝을 잡고 드래그하면
-        업무 기간을 늘리거나 줄일 수 있습니다.
-      </p>
-    ),
-  },
-  {
-    question: "하위 업무의 일정이 상위 업무에 반영되나요?",
-    answer: (
-      <p>
-        상위 업무의 상세 패널에서 <GuideKbd>하위 일정 자동 반영</GuideKbd>을
-        선택하면 하위 업무의 일정이 상위 업무에 반영됩니다.
-      </p>
-    ),
-  },
-  {
-    question: "다운로드한 Excel 파일을 수정해서 다시 가져올 수 있나요?",
-    answer: (
-      <>
-        <p>
-          네. 다운로드한 Excel 파일에서 일정의 날짜, 색상, 이름, 메모,
-          체크포인트, 행 순서 등을 수정한 후 다시 가져올 수 있습니다.
-        </p>
-        <p>예를 들어 다음과 같은 수정이 가능합니다.</p>
-        <ul className="list-disc space-y-1 pl-4">
-          <li>일정의 시작일·종료일 변경</li>
-          <li>일정 막대의 색상 변경</li>
-          <li>업무 이름 변경</li>
-          <li>메모 내용 변경</li>
-          <li>체크포인트 추가·삭제·이동</li>
-          <li>업무(행) 순서 변경</li>
-          <li>Work Item 추가·삭제</li>
-        </ul>
-        <p>
-          변경된 내용은 <GuideKbd>Excel 불러오기</GuideKbd>로 가져오는 과정에서
-          가져오기 전에 확인할 수 있으며, 확인 후 프로젝트에 반영됩니다.
-        </p>
-      </>
-    ),
-  },
-];
-
-function GuideFaqSection({ items }: { items: GuideFaqItem[] }) {
-  const [openIndexes, setOpenIndexes] = useState<Set<number>>(new Set());
-
-  const toggle = (index: number) => {
-    setOpenIndexes((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
-
-  return (
-    <div className="divide-y divide-zinc-200 rounded-xl border border-zinc-200">
-      {items.map((item, index) => {
-        const isOpen = openIndexes.has(index);
-
-        return (
-          <div key={item.question}>
-            <button
-              type="button"
-              onClick={() => toggle(index)}
-              aria-expanded={isOpen}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
-            >
-              <span>{item.question}</span>
-              <span
-                className={`shrink-0 text-zinc-400 transition-transform duration-200 ${
-                  isOpen ? "rotate-180" : ""
-                }`}
-              >
-                ▾
-              </span>
-            </button>
-            {isOpen && (
-              <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed text-zinc-700">
-                {item.answer}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-const initialWorkItems: WorkItem[] = [
-  createWorkItem({
-    id: "001",
-    name: "디지털마케팅",
-    parentId: null,
-    order: 1000,
-    startDate: "2026-09-01",
-    endDate: "2026-09-20",
-  }),
-  createWorkItem({
-    id: "002",
-    name: "시장조사",
-    parentId: "001",
-    order: 1000,
-    startDate: "2026-09-01",
-    endDate: "2026-09-05",
-  }),
-  createWorkItem({
-    id: "003",
-    name: "기획",
-    parentId: "001",
-    order: 2000,
-    startDate: "2026-09-04",
-    endDate: "2026-09-12",
-  }),
-  createWorkItem({
-    id: "004",
-    name: "디자인",
-    parentId: "001",
-    order: 3000,
-    startDate: "2026-09-10",
-    endDate: "2026-09-20",
-  }),
-];
 
 function getLocalDateString(date: Date) {
   const year = date.getFullYear();
@@ -693,7 +125,7 @@ function getLocalDateString(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function createDefaultProject(): Project {
+function createDefaultProject(t: TranslateFn = identityTranslate): Project {
   const timelineStartDate = new Date();
   const timelineStart = getLocalDateString(timelineStartDate);
   const timelineEndDate = new Date(timelineStartDate);
@@ -701,10 +133,10 @@ function createDefaultProject(): Project {
 
   return {
     id: crypto.randomUUID(),
-    name: "새 프로젝트",
+    name: t("새 프로젝트"),
     timelineStart,
     timelineEnd: getLocalDateString(timelineEndDate),
-    workItems: initialWorkItems,
+    workItems: createInitialWorkItems(t),
     customColors: [],
   };
 }
@@ -921,6 +353,8 @@ export default function Home() {
     canUndo,
     canRedo,
   } = useHistoryState<Project>(createDefaultProject);
+  const { lang } = useLanguage();
+  const t = useT();
   const dragSnapshotRef = useRef<Project | null>(null);
   // Analytics: dedupes project_open so switching to the same project twice
   // (or an effect re-running under StrictMode) doesn't double-fire it.
@@ -1115,11 +549,20 @@ export default function Home() {
 
         // Fresh install / nothing saved yet — persist the default project
         // that useHistoryState already initialized so it becomes the
-        // current project going forward.
-        saveProject(project).catch(() => {});
-        setCurrentProjectId(project.id).catch(() => {});
-        trackEvent({ eventType: "project_create", projectId: project.id });
-        trackProjectOpen(project.id);
+        // current project going forward. useHistoryState seeds it in Korean
+        // (SSR-stable); if the stored UI language is English, re-seed with
+        // localized names before the first save.
+        const seeded =
+          readStoredLanguage() === "ko" ? project : createDefaultProject(t);
+
+        if (seeded !== project) {
+          resetProjectHistory(seeded);
+        }
+
+        saveProject(seeded).catch(() => {});
+        setCurrentProjectId(seeded.id).catch(() => {});
+        trackEvent({ eventType: "project_create", projectId: seeded.id });
+        trackProjectOpen(seeded.id);
       })
       .catch(() => {
         // IndexedDB unavailable (e.g. private browsing) — keep the default project.
@@ -1359,7 +802,7 @@ export default function Home() {
 
   const saveTimeline = () => {
     if (!timelineStartDraft || !timelineEndDraft) {
-      setTimelineEditError("Timeline 시작일과 종료일을 모두 입력해주세요.");
+      setTimelineEditError(t("Timeline 시작일과 종료일을 모두 입력해주세요."));
       return;
     }
 
@@ -1369,7 +812,7 @@ export default function Home() {
     );
 
     if (!rangeCheck.valid) {
-      setTimelineEditError(rangeCheck.reason);
+      setTimelineEditError(translateTimelineRangeError(rangeCheck.code, t));
       return;
     }
 
@@ -1393,7 +836,7 @@ export default function Home() {
     const parentId = selectedItemId ?? null;
     const newWorkItem = createWorkItem({
       id: crypto.randomUUID(),
-      name: parentId ? "새 하위 항목" : "새 항목",
+      name: parentId ? t("새 하위 항목") : t("새 항목"),
       parentId,
       order: getNextSiblingOrder(workItems, parentId),
       // Default to a 1-day bar at the timeline's start so it's always
@@ -1910,7 +1353,7 @@ export default function Home() {
       trackEvent({ eventType: "project_export", projectId: project.id });
       maybeShowSurvey();
     } catch {
-      setExportError("Excel 파일을 내보내는 중 오류가 발생했습니다.");
+      setExportError(t("Excel 파일을 내보내는 중 오류가 발생했습니다."));
     } finally {
       setIsExporting(false);
     }
@@ -1938,7 +1381,7 @@ export default function Home() {
 
       if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
         throw new ExcelImportError(
-          "파일 크기가 너무 큽니다. 50MB 이하의 Excel 파일을 사용해주세요."
+          t("파일 크기가 너무 큽니다. 50MB 이하의 Excel 파일을 사용해주세요.")
         );
       }
 
@@ -1950,8 +1393,10 @@ export default function Home() {
     } catch (error) {
       setImportError(
         error instanceof Error && error.name === "ExcelImportError"
-          ? error.message
-          : "Excel 파일을 읽을 수 없습니다. 파일이 손상되었거나 지원하지 않는 형식일 수 있습니다."
+          ? t(error.message)
+          : t(
+              "Excel 파일을 읽을 수 없습니다. 파일이 손상되었거나 지원하지 않는 형식일 수 있습니다.",
+            )
       );
     } finally {
       setIsImporting(false);
@@ -2045,16 +1490,16 @@ export default function Home() {
     return (
       <div>
         <p className={`text-xs font-semibold ${toneClass}`}>
-          {label} {entries.length}개
+          {label} {t("{count}개", { count: entries.length })}
         </p>
         <ul className="mt-1 space-y-0.5 pl-3 text-xs text-zinc-600">
           {visible.map((entry) => (
             <li key={entry.id} className="truncate">
-              · {entry.name || "(이름 없음)"}
+              · {entry.name || t("(이름 없음)")}
             </li>
           ))}
           {remaining > 0 && (
-            <li className="text-zinc-400">외 {remaining}개</li>
+            <li className="text-zinc-400">{t("외 {count}개", { count: remaining })}</li>
           )}
         </ul>
       </div>
@@ -2076,7 +1521,7 @@ export default function Home() {
   };
 
   const createNewProject = () => {
-    switchToProject(createDefaultProject(), { isNewProject: true });
+    switchToProject(createDefaultProject(t), { isNewProject: true });
     setIsProjectListOpen(false);
   };
 
@@ -2127,7 +1572,7 @@ export default function Home() {
           trackProjectOpen(target.id);
         }
       } else {
-        switchToProject(createDefaultProject(), { isNewProject: true });
+        switchToProject(createDefaultProject(t), { isNewProject: true });
       }
     }
   };
@@ -2392,18 +1837,18 @@ export default function Home() {
                 onClick={undo}
                 disabled={!canUndo || isQuickAddingChildren}
                 className="text-xs font-medium text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
-                aria-label="실행 취소"
+                aria-label={t("실행 취소")}
               >
-                실행취소
+                {t("실행취소")}
               </button>
               <button
                 type="button"
                 onClick={redo}
                 disabled={!canRedo || isQuickAddingChildren}
                 className="text-xs font-medium text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
-                aria-label="다시 실행"
+                aria-label={t("다시 실행")}
               >
-                다시실행
+                {t("다시실행")}
               </button>
             </div>
 
@@ -2420,7 +1865,7 @@ export default function Home() {
                 }}
                 disabled={dayWidth <= MIN_DAY_WIDTH}
                 className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
-                aria-label="축소"
+                aria-label={t("축소")}
               >
                 −
               </button>
@@ -2437,7 +1882,7 @@ export default function Home() {
                 }}
                 disabled={dayWidth >= MAX_DAY_WIDTH}
                 className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500 hover:text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
-                aria-label="확대"
+                aria-label={t("확대")}
               >
                 +
               </button>
@@ -2452,7 +1897,7 @@ export default function Home() {
                 disabled={isExporting}
                 className="flex h-7 items-center rounded-md border border-zinc-300 px-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isExporting ? "내보내는 중..." : "Excel로 내보내기"}
+                {isExporting ? t("내보내는 중...") : t("Excel로 내보내기")}
               </button>
 
               <button
@@ -2461,7 +1906,7 @@ export default function Home() {
                 disabled={isImporting}
                 className="flex h-7 items-center rounded-md border border-zinc-300 px-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isImporting ? "불러오는 중..." : "Excel 불러오기"}
+                {isImporting ? t("불러오는 중...") : t("Excel 불러오기")}
               </button>
               <input
                 ref={importFileInputRef}
@@ -2488,26 +1933,26 @@ export default function Home() {
                 >
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                 </svg>
-                내 프로젝트
+                {t("내 프로젝트")}
               </button>
             </div>
 
             <div className="h-4 w-px bg-zinc-200" />
 
             <div className="text-xs font-semibold text-blue-600">
-              {saveStatus === "saving" ? "저장 중..." : "저장됨"}
+              {saveStatus === "saving" ? t("저장 중...") : t("저장됨")}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="-translate-y-[10px] flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => {
               trackEvent({ eventType: "feedback_open", projectId: project.id });
               setIsFeedbackOpen(true);
             }}
-            className="-translate-y-[10px] flex items-center gap-1 text-xs font-medium text-zinc-400 transition hover:text-zinc-600"
+            className="flex items-center gap-1 text-xs font-medium text-zinc-400 transition hover:text-zinc-600"
           >
             <svg
               viewBox="0 0 24 24"
@@ -2522,8 +1967,9 @@ export default function Home() {
               <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
               <line x1="4" y1="22" x2="4" y2="15" />
             </svg>
-            오류 신고 · 개선 제안
+            {lang === "en" ? "Report" : "오류 신고 · 개선 제안"}
           </button>
+          <LanguageSegmentedControl />
         </div>
 
         <div className="min-w-0 space-y-1.5">
@@ -2552,14 +1998,14 @@ export default function Home() {
                 onClick={saveProjectName}
                 className="text-xs font-semibold text-blue-600 hover:text-blue-700"
               >
-                저장
+                {t("저장")}
               </button>
               <button
                 type="button"
                 onClick={cancelProjectNameEdit}
                 className="text-xs text-zinc-500 hover:text-zinc-700"
               >
-                취소
+                {t("취소")}
               </button>
             </div>
           ) : (
@@ -2571,7 +2017,7 @@ export default function Home() {
                 type="button"
                 onClick={startProjectNameEdit}
                 className="shrink-0 text-base text-blue-600 hover:text-blue-700"
-                aria-label="프로젝트명 편집"
+                aria-label={t("프로젝트명 편집")}
               >
                 ✎
               </button>
@@ -2618,14 +2064,14 @@ export default function Home() {
                   onClick={saveTimeline}
                   className="text-xs font-semibold text-blue-600 hover:text-blue-700"
                 >
-                  저장
+                  {t("저장")}
                 </button>
                 <button
                   type="button"
                   onClick={cancelTimelineEdit}
                   className="text-xs text-zinc-500 hover:text-zinc-700"
                 >
-                  취소
+                  {t("취소")}
                 </button>
                 {timelineEditError && (
                   <span className="text-xs text-red-600">
@@ -2645,7 +2091,7 @@ export default function Home() {
                   type="button"
                   onClick={startTimelineEdit}
                   className="text-blue-600 hover:text-blue-700"
-                  aria-label="Timeline 기간 편집"
+                  aria-label={t("Timeline 기간 편집")}
                 >
                   ✎
                 </button>
@@ -2720,7 +2166,7 @@ export default function Home() {
                         onClick={() => toggleCollapsedItem(item.id)}
                         className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500"
                         aria-label={`${item.name} ${
-                          isCollapsed ? "펼치기" : "접기"
+                          isCollapsed ? t("펼치기") : t("접기")
                         }`}
                       >
                         {isCollapsed ? "▶" : "▼"}
@@ -2762,7 +2208,7 @@ export default function Home() {
             onClick={addWorkItem}
             className="border-t border-zinc-200 px-4 py-3 text-left text-sm text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
           >
-            + 항목 추가
+            {t("+ 항목 추가")}
           </button>
         </section>
 
@@ -2809,7 +2255,7 @@ export default function Home() {
                               : "text-[10px] text-zinc-400"
                         }
                       >
-                        {getWeekdayLabel(date)}
+                        {getWeekdayLabel(date, lang)}
                       </span>
                     </div>
                   );
@@ -2884,7 +2330,7 @@ export default function Home() {
                         ...getBarBackground(item, effectiveTimeline, workItems),
                       }}
                     >
-                      {item.isUndecided ? "일정 미정" : null}
+                      {item.isUndecided ? t("일정 미정") : null}
                       {isInteractive &&
                         item.checkpoints
                           .filter(
@@ -2983,8 +2429,8 @@ export default function Home() {
                   }
                   aria-label={
                     selectedItem.active
-                      ? "항목 비활성화"
-                      : "항목 활성화"
+                      ? t("항목 비활성화")
+                      : t("항목 활성화")
                   }
                   aria-pressed={selectedItem.active}
                   className={`flex h-5 w-5 items-center justify-center ${
@@ -3036,7 +2482,7 @@ export default function Home() {
               {/* Name */}
               <label className="block">
                 <span className="mb-2 block text-xs font-medium text-zinc-500">
-                  항목명
+                  {t("항목명")}
                 </span>
 
                 <input
@@ -3055,7 +2501,7 @@ export default function Home() {
               {/* Color */}
               <div className="block">
                 <span className="mb-2 block text-xs font-medium text-zinc-500">
-                  색상
+                  {t("색상")}
                 </span>
 
                 <div className="flex flex-wrap gap-2">
@@ -3065,7 +2511,7 @@ export default function Home() {
                         key={color}
                         type="button"
                         onClick={() => updateWorkItem("color", color)}
-                        aria-label={`색상 ${color} 선택`}
+                        aria-label={t("색상 {color} 선택", { color })}
                         className={`h-6 w-6 rounded-full border-2 ${
                           selectedItem.color === color
                             ? "border-zinc-900"
@@ -3102,7 +2548,7 @@ export default function Home() {
                           )
                         );
                       }}
-                      aria-label="사용자 지정 색상 추가"
+                      aria-label={t("사용자 지정 색상 추가")}
                       className="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
                     />
                   </div>
@@ -3112,7 +2558,7 @@ export default function Home() {
 
               {selectedItemHasChildren && (
                 <label className="flex items-center justify-between rounded-md border border-zinc-200 px-3 py-2">
-                  <span className="text-sm">하위 일정 자동 반영</span>
+                  <span className="text-sm">{t("하위 일정 자동 반영")}</span>
                   <input
                     type="checkbox"
                     checked={selectedItem.autoTimeline}
@@ -3129,7 +2575,7 @@ export default function Home() {
                   selectedItem.autoTimeline ? "opacity-40" : ""
                 }`}
               >
-                <span className="text-sm">일정 미정</span>
+                <span className="text-sm">{t("일정 미정")}</span>
                 <input
                   type="checkbox"
                   checked={selectedItem.isUndecided}
@@ -3145,12 +2591,12 @@ export default function Home() {
                 <div className="rounded-md bg-zinc-100 p-3 text-xs text-zinc-600">
                   {selectedEffectiveTimeline ? (
                     <>
-                      하위 일정으로 자동 계산됨: {" "}
-                      {selectedEffectiveTimeline.startDate} ~ {" "}
+                      {t("하위 일정으로 자동 계산됨:")}{" "}
+                      {selectedEffectiveTimeline.startDate} ~{" "}
                       {selectedEffectiveTimeline.endDate}
                     </>
                   ) : (
-                    "하위 일정이 없어 기간을 계산할 수 없습니다."
+                    t("하위 일정이 없어 기간을 계산할 수 없습니다.")
                   )}
                 </div>
               )}
@@ -3158,7 +2604,7 @@ export default function Home() {
               {/* Start Date */}
               <label className="block">
                 <span className="mb-2 block text-xs font-medium text-zinc-500">
-                  시작일
+                  {t("시작일")}
                 </span>
 
                 <input
@@ -3178,7 +2624,7 @@ export default function Home() {
               {/* End Date */}
               <label className="block">
                 <span className="mb-2 block text-xs font-medium text-zinc-500">
-                  종료일
+                  {t("종료일")}
                 </span>
 
                 <input
@@ -3198,7 +2644,7 @@ export default function Home() {
               {/* Checkpoints */}
               <div className="block">
                 <span className="mb-2 block text-xs font-medium text-zinc-500">
-                  체크포인트
+                  {t("체크포인트")}
                 </span>
 
                 {selectedItem.autoTimeline ||
@@ -3206,8 +2652,9 @@ export default function Home() {
                 !selectedItem.startDate ||
                 !selectedItem.endDate ? (
                   <p className="rounded-md bg-zinc-100 p-3 text-xs text-zinc-500">
-                    시작일/종료일이 지정된 일정에서만 체크포인트를 추가할 수
-                    있습니다.
+                    {t(
+                      "시작일/종료일이 지정된 일정에서만 체크포인트를 추가할 수 있습니다.",
+                    )}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -3237,7 +2684,7 @@ export default function Home() {
                             type="text"
                             value={checkpoint.label}
                             maxLength={20}
-                            placeholder="라벨"
+                            placeholder={t("라벨")}
                             disabled={isQuickAddingChildren}
                             onChange={(event) =>
                               updateCheckpoint(
@@ -3252,10 +2699,10 @@ export default function Home() {
                             type="button"
                             disabled={isQuickAddingChildren}
                             onClick={() => deleteCheckpoint(checkpoint.id)}
-                            aria-label="체크포인트 삭제"
+                            aria-label={t("체크포인트 삭제")}
                             className="shrink-0 text-xs text-zinc-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            삭제
+                            {t("삭제")}
                           </button>
                         </div>
                       ))}
@@ -3266,7 +2713,7 @@ export default function Home() {
                       onClick={addCheckpoint}
                       className="w-full rounded-md border border-dashed border-zinc-300 py-1.5 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      + 체크포인트 추가
+                      {t("+ 체크포인트 추가")}
                     </button>
                   </div>
                 )}
@@ -3275,7 +2722,7 @@ export default function Home() {
               {/* Memo */}
               <label className="block">
                 <span className="mb-2 block text-xs font-medium text-zinc-500">
-                  메모
+                  {t("메모")}
                 </span>
 
                 <textarea
@@ -3284,7 +2731,7 @@ export default function Home() {
                     updateWorkItem("memo", event.target.value)
                   }
                   rows={3}
-                  placeholder="메모 입력"
+                  placeholder={t("메모 입력")}
                   className="w-full resize-none rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                 />
               </label>
@@ -3294,7 +2741,7 @@ export default function Home() {
               {isQuickAddingChildren ? (
                 <div className="space-y-2">
                   <span className="block text-xs font-medium text-zinc-500">
-                    하위 항목 이름을 입력하고 Enter 또는 추가를 누르세요
+                    {t("하위 항목 이름을 입력하고 Enter 또는 추가를 누르세요")}
                   </span>
 
                   {quickAddSessionItems.length > 0 && (
@@ -3308,7 +2755,7 @@ export default function Home() {
                           <button
                             type="button"
                             onClick={() => removeQuickAddItem(item.id)}
-                            aria-label={`${item.name} 취소`}
+                            aria-label={t("{name} 취소", { name: item.name })}
                             className="flex h-4 w-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
                           >
                             ×
@@ -3348,7 +2795,7 @@ export default function Home() {
                           finishQuickAddChildren();
                         }
                       }}
-                      placeholder="하위 항목 이름"
+                      placeholder={t("하위 항목 이름")}
                       className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600"
                     />
                     <button
@@ -3356,7 +2803,7 @@ export default function Home() {
                       onClick={addQuickChild}
                       className="shrink-0 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-50"
                     >
-                      추가
+                      {t("추가")}
                     </button>
                   </div>
 
@@ -3365,7 +2812,7 @@ export default function Home() {
                     onClick={finishQuickAddChildren}
                     className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
                   >
-                    완료
+                    {t("완료")}
                   </button>
                 </div>
               ) : (
@@ -3375,14 +2822,14 @@ export default function Home() {
                     onClick={startQuickAddChildren}
                     className="mb-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-50"
                   >
-                    + 하위 항목 추가
+                    {t("+ 하위 항목 추가")}
                   </button>
                   <button
                     type="button"
                     onClick={requestDeleteWorkItem}
                     className="w-full rounded-md border border-red-200 px-3 py-2 text-sm text-red-600 transition hover:bg-red-50"
                   >
-                    항목 삭제
+                    {t("항목 삭제")}
                   </button>
                 </>
               )}
@@ -3414,7 +2861,7 @@ export default function Home() {
       <button
         type="button"
         onClick={openGuide}
-        aria-label="사용법 보기"
+        aria-label={t("사용법 보기")}
         className={`fixed bottom-6 right-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white shadow-lg transition-[right,transform] duration-200 ease-out hover:bg-blue-700 active:scale-90 ${
           selectedItem ? "md:right-[344px]" : ""
         }`}
@@ -3442,16 +2889,16 @@ export default function Home() {
             <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-zinc-900">
-                  TO-DO-LINE 사용 설명서
+                  {t("TO-DO-LINE 사용 설명서")}
                 </h2>
                 <p className="text-xs text-zinc-500">
-                  업무를 잇고, 흐름을 보다.
+                  {t("업무를 잇고, 흐름을 보다.")}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={closeGuide}
-                aria-label="사용법 닫기"
+                aria-label={t("사용법 닫기")}
                 className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 active:scale-90"
               >
                 ✕
@@ -3460,11 +2907,12 @@ export default function Home() {
 
             <div className="flex shrink-0 flex-col gap-1.5 border-b border-zinc-200 bg-zinc-50/70 px-5 py-2.5">
               <p className="text-[11px] text-zinc-400">
-                상단 메뉴에서 원하는 내용을 선택하면 해당 위치로 이동할 수
-                있습니다.
+                {t(
+                  "상단 메뉴에서 원하는 내용을 선택하면 해당 위치로 이동할 수 있습니다.",
+                )}
               </p>
               <div className="flex gap-1.5 overflow-x-auto">
-                {GUIDE_TABS.map((tab, index) => (
+                {getGuideTabs(lang).map((tab, index) => (
                   <button
                     key={tab}
                     type="button"
@@ -3487,13 +2935,27 @@ export default function Home() {
                   className="h-9 w-9 shrink-0"
                 />
                 <p className="text-sm leading-relaxed text-zinc-700">
-                  TO-DO-LINE은 프로젝트의 업무 구조와 일정을 Timeline으로
-                  구성하여{" "}
-                  <b className="text-zinc-900">
-                    업무의 위계와 시간의 흐름을 한눈에 확인할 수 있도록 돕는
-                    업무 관리 도구
-                  </b>
-                  입니다.
+                  {lang === "en" ? (
+                    <>
+                      TO-DO-LINE lays out a project&apos;s work structure and
+                      schedule on a Timeline — a{" "}
+                      <b className="text-zinc-900">
+                        work management tool that helps you see the hierarchy of
+                        tasks and their flow over time at a glance
+                      </b>
+                      .
+                    </>
+                  ) : (
+                    <>
+                      TO-DO-LINE은 프로젝트의 업무 구조와 일정을 Timeline으로
+                      구성하여{" "}
+                      <b className="text-zinc-900">
+                        업무의 위계와 시간의 흐름을 한눈에 확인할 수 있도록 돕는
+                        업무 관리 도구
+                      </b>
+                      입니다.
+                    </>
+                  )}
                 </p>
               </div>
 
@@ -3503,14 +2965,15 @@ export default function Home() {
                 }}
               >
                 <h2 className="mb-1 text-lg font-bold text-zinc-900">
-                  전체 설명
+                  {t("전체 설명")}
                 </h2>
                 <p className="mb-4 text-xs text-zinc-500">
-                  프로젝트를 시작하는 단계부터 Excel 내보내기까지, 전체
-                  사용 흐름을 순서대로 확인할 수 있습니다.
+                  {t(
+                    "프로젝트를 시작하는 단계부터 Excel 내보내기까지, 전체 사용 흐름을 순서대로 확인할 수 있습니다.",
+                  )}
                 </p>
                 <div className="space-y-4">
-                  {GUIDE_FULL_STEPS.map((step) => (
+                  {getGuideFullSteps(lang).map((step) => (
                     <div
                       key={step.number}
                       className="rounded-xl border border-zinc-200 p-5"
@@ -3538,14 +3001,15 @@ export default function Home() {
                 className="mt-10"
               >
                 <h2 className="mb-1 text-lg font-bold text-zinc-900">
-                  요약 설명
+                  {t("요약 설명")}
                 </h2>
                 <p className="mb-4 text-xs text-zinc-500">
-                  핵심적인 조작 방법만 짧게 확인하고 싶다면 아래 요약을
-                  참고하세요.
+                  {t(
+                    "핵심적인 조작 방법만 짧게 확인하고 싶다면 아래 요약을 참고하세요.",
+                  )}
                 </p>
                 <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-                  {GUIDE_SUMMARY_STEPS.map((step) => (
+                  {getGuideSummarySteps(lang).map((step) => (
                     <div
                       key={step.number}
                       className="flex items-start gap-3 px-4 py-3"
@@ -3573,12 +3037,12 @@ export default function Home() {
                 className="mt-10"
               >
                 <h2 className="mb-1 text-lg font-bold text-zinc-900">
-                  자주 묻는 질문
+                  {t("자주 묻는 질문")}
                 </h2>
                 <p className="mb-4 text-xs text-zinc-500">
-                  질문을 클릭하면 답변이 펼쳐집니다.
+                  {t("질문을 클릭하면 답변이 펼쳐집니다.")}
                 </p>
-                <GuideFaqSection items={GUIDE_FAQ_ITEMS} />
+                <GuideFaqSection items={getGuideFaqItems(lang)} />
               </div>
             </div>
           </div>
@@ -3588,10 +3052,12 @@ export default function Home() {
       {deleteConfirmation && deleteConfirmationItem && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-            <h2 className="text-base font-semibold">Work Item 삭제</h2>
+            <h2 className="text-base font-semibold">{t("Work Item 삭제")}</h2>
             <p className="mt-2 text-sm text-zinc-600">
-              {deleteConfirmationItem.name}와 하위 업무 {" "}
-              {deleteConfirmation.descendantCount}개를 삭제하시겠습니까?
+              {t("{name}와 하위 업무 {count}개를 삭제하시겠습니까?", {
+                name: deleteConfirmationItem.name,
+                count: deleteConfirmation.descendantCount,
+              })}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -3599,14 +3065,14 @@ export default function Home() {
                 onClick={() => setDeleteConfirmation(null)}
                 className="rounded-md px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
               >
-                취소
+                {t("취소")}
               </button>
               <button
                 type="button"
                 onClick={confirmDeleteWorkItem}
                 className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
               >
-                삭제
+                {t("삭제")}
               </button>
             </div>
           </div>
@@ -3617,7 +3083,7 @@ export default function Home() {
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
           <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
-              <h2 className="text-base font-semibold">내 프로젝트</h2>
+              <h2 className="text-base font-semibold">{t("내 프로젝트")}</h2>
               <button
                 type="button"
                 onClick={() => setIsProjectListOpen(false)}
@@ -3628,19 +3094,19 @@ export default function Home() {
             </div>
 
             <div className="border-b border-zinc-200 bg-amber-50 px-5 py-3 text-xs leading-relaxed text-amber-800">
-              ⚠️ 이 프로젝트들은 현재 사용 중인 기기의 이 브라우저에만 저장됩니다.
-              브라우저 데이터(캐시/사이트 데이터)를 삭제하면 프로젝트를 복구할 수
-              없습니다.
+              {t(
+                "⚠️ 이 프로젝트들은 현재 사용 중인 기기의 이 브라우저에만 저장됩니다. 브라우저 데이터(캐시/사이트 데이터)를 삭제하면 프로젝트를 복구할 수 없습니다.",
+              )}
             </div>
 
             <div className="flex-1 overflow-auto p-3">
               {isLoadingProjectList ? (
                 <div className="p-4 text-center text-sm text-zinc-400">
-                  불러오는 중...
+                  {t("불러오는 중...")}
                 </div>
               ) : projectSummaries.length === 0 ? (
                 <div className="p-4 text-center text-sm text-zinc-400">
-                  저장된 프로젝트가 없습니다.
+                  {t("저장된 프로젝트가 없습니다.")}
                 </div>
               ) : (
                 <ul className="space-y-1">
@@ -3660,11 +3126,13 @@ export default function Home() {
                       >
                         <div className="truncate text-sm font-medium text-zinc-900">
                           {summary.name}
-                          {summary.id === project.id ? " (현재 열림)" : ""}
+                          {summary.id === project.id ? t(" (현재 열림)") : ""}
                         </div>
                         <div className="truncate text-xs text-zinc-500">
-                          {summary.timelineStart} ~ {summary.timelineEnd} ·
-                          Work Item {summary.workItemCount}개
+                          {summary.timelineStart} ~ {summary.timelineEnd} ·{" "}
+                          {t("Work Item {count}개", {
+                            count: summary.workItemCount,
+                          })}
                         </div>
                       </button>
                       <button
@@ -3672,7 +3140,7 @@ export default function Home() {
                         onClick={() => setProjectDeleteConfirmId(summary.id)}
                         className="shrink-0 text-xs text-red-500 hover:text-red-700"
                       >
-                        삭제
+                        {t("삭제")}
                       </button>
                     </li>
                   ))}
@@ -3686,7 +3154,7 @@ export default function Home() {
                 onClick={createNewProject}
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
               >
-                + 새 프로젝트 만들기
+                {t("+ 새 프로젝트 만들기")}
               </button>
             </div>
           </div>
@@ -3696,15 +3164,17 @@ export default function Home() {
       {projectDeleteConfirmId && (
         <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-            <h2 className="text-base font-semibold">프로젝트 삭제</h2>
+            <h2 className="text-base font-semibold">{t("프로젝트 삭제")}</h2>
             <p className="mt-2 text-sm text-zinc-600">
-              &ldquo;
-              {
-                projectSummaries.find((s) => s.id === projectDeleteConfirmId)
-                  ?.name
-              }
-              &rdquo; 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수
-              없습니다.
+              {t(
+                "“{name}” 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+                {
+                  name:
+                    projectSummaries.find(
+                      (s) => s.id === projectDeleteConfirmId,
+                    )?.name ?? "",
+                },
+              )}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -3712,14 +3182,14 @@ export default function Home() {
                 onClick={() => setProjectDeleteConfirmId(null)}
                 className="rounded-md px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
               >
-                취소
+                {t("취소")}
               </button>
               <button
                 type="button"
                 onClick={confirmDeleteProjectFromList}
                 className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
               >
-                삭제
+                {t("삭제")}
               </button>
             </div>
           </div>
@@ -3730,12 +3200,13 @@ export default function Home() {
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
           <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
             <div className="border-b border-zinc-200 p-5 pb-4">
-              <h2 className="text-base font-semibold">덮어쓰기 내용 확인</h2>
+              <h2 className="text-base font-semibold">{t("덮어쓰기 내용 확인")}</h2>
               <p className="mt-2 text-sm text-zinc-600">
-                이 작업은 현재 프로젝트를 Excel 파일 내용으로 교체합니다. 아래
-                항목이 실제로 추가/수정/삭제됩니다 — 특히{" "}
+                {t(
+                  "이 작업은 현재 프로젝트를 Excel 파일 내용으로 교체합니다. 아래 항목이 실제로 추가/수정/삭제됩니다 — 특히",
+                )}{" "}
                 <span className="font-semibold text-red-600">
-                  삭제되는 항목은 되돌릴 수 없습니다.
+                  {t("삭제되는 항목은 되돌릴 수 없습니다.")}
                 </span>
               </p>
             </div>
@@ -3746,17 +3217,17 @@ export default function Home() {
                 </h3>
                 <div className="mt-2 space-y-3">
                   {renderDiffEntryList(
-                    "추가",
+                    t("추가"),
                     pendingImportDiff?.workItems.added ?? [],
                     "add"
                   )}
                   {renderDiffEntryList(
-                    "수정",
+                    t("수정"),
                     pendingImportDiff?.workItems.modified ?? [],
                     "modify"
                   )}
                   {renderDiffEntryList(
-                    "삭제",
+                    t("삭제"),
                     pendingImportDiff?.workItems.deleted ?? [],
                     "delete"
                   )}
@@ -3764,21 +3235,21 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-zinc-400">
-                  체크포인트
+                  {t("체크포인트")}
                 </h3>
                 <div className="mt-2 space-y-3">
                   {renderDiffEntryList(
-                    "추가",
+                    t("추가"),
                     pendingImportDiff?.checkpoints.added ?? [],
                     "add"
                   )}
                   {renderDiffEntryList(
-                    "수정",
+                    t("수정"),
                     pendingImportDiff?.checkpoints.modified ?? [],
                     "modify"
                   )}
                   {renderDiffEntryList(
-                    "삭제",
+                    t("삭제"),
                     pendingImportDiff?.checkpoints.deleted ?? [],
                     "delete"
                   )}
@@ -3791,14 +3262,14 @@ export default function Home() {
                 onClick={() => setIsOverwritePreviewOpen(false)}
                 className="rounded-md px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100"
               >
-                뒤로
+                {t("뒤로")}
               </button>
               <button
                 type="button"
                 onClick={() => applyPendingImport("overwrite")}
                 className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
               >
-                그래도 덮어쓰기
+                {t("그래도 덮어쓰기")}
               </button>
             </div>
           </div>
@@ -3808,10 +3279,12 @@ export default function Home() {
       {pendingImport && !isOverwritePreviewOpen && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-            <h2 className="text-base font-semibold">Excel 불러오기</h2>
+            <h2 className="text-base font-semibold">{t("Excel 불러오기")}</h2>
             <p className="mt-2 text-sm text-zinc-600">
-              &ldquo;{pendingImport.name}&rdquo; ({pendingImport.workItems.length}개
-              항목)를 어떻게 불러올까요?
+              {t("“{name}” ({count}개 항목)를 어떻게 불러올까요?", {
+                name: pendingImport.name,
+                count: pendingImport.workItems.length,
+              })}
             </p>
             <div className="mt-5 flex flex-col gap-2">
               <button
@@ -3819,10 +3292,11 @@ export default function Home() {
                 onClick={() => applyPendingImport("new")}
                 className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-700"
               >
-                새 프로젝트로 불러오기
+                {t("새 프로젝트로 불러오기")}
                 <span className="mt-0.5 block text-xs font-normal text-zinc-300">
-                  현재 프로젝트는 그대로 두고, Excel 데이터를 별도의 새
-                  프로젝트로 만듭니다.
+                  {t(
+                    "현재 프로젝트는 그대로 두고, Excel 데이터를 별도의 새 프로젝트로 만듭니다.",
+                  )}
                 </span>
               </button>
               <button
@@ -3830,10 +3304,9 @@ export default function Home() {
                 onClick={handleOverwriteImportClick}
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
               >
-                현재 프로젝트에 덮어쓰기
+                {t("현재 프로젝트에 덮어쓰기")}
                 <span className="mt-0.5 block text-xs font-normal text-zinc-400">
-                  지금 열려 있는 프로젝트의 데이터를 Excel 데이터로
-                  교체합니다.
+                  {t("지금 열려 있는 프로젝트의 데이터를 Excel 데이터로 교체합니다.")}
                 </span>
               </button>
               <button
@@ -3841,7 +3314,7 @@ export default function Home() {
                 onClick={cancelPendingImport}
                 className="w-full rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-100"
               >
-                취소
+                {t("취소")}
               </button>
             </div>
           </div>
@@ -3851,7 +3324,7 @@ export default function Home() {
       {importError && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-            <h2 className="text-base font-semibold">가져오기 실패</h2>
+            <h2 className="text-base font-semibold">{t("가져오기 실패")}</h2>
             <p className="mt-2 text-sm text-zinc-600">{importError}</p>
             <div className="mt-5 flex justify-end">
               <button
@@ -3859,7 +3332,7 @@ export default function Home() {
                 onClick={() => setImportError(null)}
                 className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-700"
               >
-                확인
+                {t("확인")}
               </button>
             </div>
           </div>
@@ -3869,7 +3342,7 @@ export default function Home() {
       {exportError && (
         <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
-            <h2 className="text-base font-semibold">내보내기 실패</h2>
+            <h2 className="text-base font-semibold">{t("내보내기 실패")}</h2>
             <p className="mt-2 text-sm text-zinc-600">{exportError}</p>
             <div className="mt-5 flex justify-end">
               <button
@@ -3877,7 +3350,7 @@ export default function Home() {
                 onClick={() => setExportError(null)}
                 className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-700"
               >
-                확인
+                {t("확인")}
               </button>
             </div>
           </div>

@@ -15,6 +15,7 @@ import {
 import { DEFAULT_COLOR_PALETTE } from "@/lib/work-items/color-utils";
 import { getMobileBarBackground } from "@/components/mobile/mobile-timeline-visuals";
 import type { Checkpoint, WorkItem } from "@/types/project";
+import { useT } from "@/lib/i18n/use-t";
 
 const AUTO_UNDECIDED_MEMO = "일정 미정";
 
@@ -25,6 +26,7 @@ type MobileScheduleScreenProps = {
 export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
   const { project, isLoaded, commitScheduleEdit, deleteWorkItem } = useMobileProject();
   const router = useRouter();
+  const t = useT();
 
   const originalItem = project.workItems.find((workItem) => workItem.id === itemId) ?? null;
 
@@ -96,19 +98,19 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
   };
 
   if (!isLoaded || (originalItem && !draft)) {
-    return <div className="p-4 text-sm text-zinc-500">불러오는 중...</div>;
+    return <div className="p-4 text-sm text-zinc-500">{t("불러오는 중...")}</div>;
   }
 
   if (!originalItem || !draft) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 p-4 text-center">
-        <p className="text-sm text-zinc-500">업무를 찾을 수 없습니다.</p>
+        <p className="text-sm text-zinc-500">{t("업무를 찾을 수 없습니다.")}</p>
         <button
           type="button"
           onClick={goBackToList}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
         >
-          목록으로 돌아가기
+          {t("목록으로 돌아가기")}
         </button>
       </div>
     );
@@ -233,27 +235,27 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
         <button
           type="button"
           onClick={handleBackOrCancel}
-          aria-label="뒤로"
+          aria-label={t("뒤로")}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100"
         >
           ←
         </button>
         <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-zinc-900">
-          업무 설정
+          {t("업무 설정")}
         </h1>
       </header>
 
       <div className="flex-1 space-y-6 overflow-auto p-4 pb-24">
         <section className="space-y-1">
           <MobileToggle
-            label="활성 상태"
+            label={t("활성 상태")}
             checked={draft.active}
             onChange={(checked) => updateDraft((item) => ({ ...item, active: checked }))}
           />
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-zinc-900">업무명</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">{t("업무명")}</h2>
           <input
             type="text"
             value={draft.name}
@@ -267,7 +269,7 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
         <section className="space-y-1">
           {hasChildren && (
             <MobileToggle
-              label="하위 일정 자동 반영"
+              label={t("하위 일정 자동 반영")}
               checked={draft.autoTimeline}
               onChange={(checked) =>
                 updateDraft((item) => ({ ...item, autoTimeline: checked }))
@@ -275,7 +277,7 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
             />
           )}
           <MobileToggle
-            label="일정 미정"
+            label={t("일정 미정")}
             checked={draft.isUndecided}
             disabled={draft.autoTimeline}
             onChange={setUndecided}
@@ -283,10 +285,10 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-900">일정</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">{t("일정")}</h2>
           {draft.autoTimeline ? (
             <p className="text-xs text-zinc-500">
-              하위 업무 일정에 따라 자동으로 계산됩니다
+              {t("하위 업무 일정에 따라 자동으로 계산됩니다")}
               {effectiveTimeline
                 ? ` (${effectiveTimeline.startDate} ~ ${effectiveTimeline.endDate})`
                 : ""}
@@ -313,14 +315,14 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-900">색상</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">{t("색상")}</h2>
           <div className="flex flex-wrap items-center gap-2">
             {DEFAULT_COLOR_PALETTE.map((color) => (
               <button
                 key={color}
                 type="button"
                 onClick={() => updateDraft((item) => ({ ...item, color }))}
-                aria-label={`색상 ${color}`}
+                aria-label={t("색상 {color}", { color })}
                 className={`h-9 w-9 shrink-0 rounded-full border-2 ${
                   draft.color === color ? "border-blue-600" : "border-transparent"
                 }`}
@@ -345,7 +347,7 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-zinc-900">체크포인트</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">{t("체크포인트")}</h2>
           {canEditCheckpoints ? (
             <MobileCheckpointList
               checkpoints={draft.checkpoints}
@@ -355,13 +357,13 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
             />
           ) : (
             <p className="text-xs text-zinc-500">
-              일정이 확정된 업무에서만 체크포인트를 설정할 수 있습니다.
+              {t("일정이 확정된 업무에서만 체크포인트를 설정할 수 있습니다.")}
             </p>
           )}
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-zinc-900">메모</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">{t("메모")}</h2>
           <textarea
             rows={3}
             value={draft.memo}
@@ -378,7 +380,7 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
             onClick={() => setIsDeleteConfirmOpen(true)}
             className="w-full rounded-md border border-red-200 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
           >
-            업무 삭제
+            {t("업무 삭제")}
           </button>
         </section>
       </div>
@@ -389,22 +391,22 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
           onClick={handleBackOrCancel}
           className="flex-1 rounded-md border border-zinc-300 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
         >
-          취소
+          {t("취소")}
         </button>
         <button
           type="button"
           onClick={handleSave}
           className="flex-1 rounded-md bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
         >
-          저장
+          {t("저장")}
         </button>
       </div>
 
       {isLeaveConfirmOpen && (
         <MobileConfirmDialog
-          title="변경사항을 저장하지 않고 나가시겠습니까?"
-          description="지금 나가면 이번 화면에서 수정한 내용이 사라집니다."
-          confirmLabel="나가기"
+          title={t("변경사항을 저장하지 않고 나가시겠습니까?")}
+          description={t("지금 나가면 이번 화면에서 수정한 내용이 사라집니다.")}
+          confirmLabel={t("나가기")}
           danger
           onConfirm={goBackToList}
           onCancel={() => setIsLeaveConfirmOpen(false)}
@@ -413,13 +415,13 @@ export function MobileScheduleScreen({ itemId }: MobileScheduleScreenProps) {
 
       {isDeleteConfirmOpen && (
         <MobileConfirmDialog
-          title={`"${draft.name}" 업무를 삭제하시겠습니까?`}
+          title={t("“{name}” 업무를 삭제하시겠습니까?", { name: draft.name })}
           description={
             hasChildren
-              ? "하위 업무도 함께 삭제되며, 되돌릴 수 없습니다."
-              : "삭제하면 되돌릴 수 없습니다."
+              ? t("하위 업무도 함께 삭제되며, 되돌릴 수 없습니다.")
+              : t("삭제하면 되돌릴 수 없습니다.")
           }
-          confirmLabel="삭제"
+          confirmLabel={t("삭제")}
           danger
           onConfirm={handleDelete}
           onCancel={() => setIsDeleteConfirmOpen(false)}

@@ -12,8 +12,9 @@ import { MobileConfirmDialog } from "@/components/mobile/mobile-confirm-dialog";
 import { MobileCreateProjectDialog } from "@/components/mobile/mobile-create-project-dialog";
 import type { ImportDiff } from "@/lib/export/excel-import";
 import type { Project } from "@/types/project";
-
-type ProjectSettingsResult = { valid: true } | { valid: false; reason: string };
+import { useT } from "@/lib/i18n/use-t";
+import { translateTimelineRangeError } from "@/lib/i18n/timeline-errors";
+import type { ProjectSettingsResult } from "@/components/mobile/use-mobile-project";
 
 type MobileProjectManagementSheetProps = {
   project: Project;
@@ -55,6 +56,7 @@ export function MobileProjectManagementSheet({
   onClose,
 }: MobileProjectManagementSheetProps) {
   const router = useRouter();
+  const t = useT();
 
   // 내 프로젝트
   const [projectSummaries, setProjectSummaries] = useState<StoredProjectSummary[] | null>(null);
@@ -102,14 +104,14 @@ export function MobileProjectManagementSheet({
       const loaded = await loadProjectById(summary.id);
 
       if (!loaded) {
-        setSwitchError("프로젝트를 불러오지 못했습니다.");
+        setSwitchError(t("프로젝트를 불러오지 못했습니다."));
         return;
       }
 
       onSwitchProject(loaded);
       onClose();
     } catch {
-      setSwitchError("프로젝트를 불러오지 못했습니다.");
+      setSwitchError(t("프로젝트를 불러오지 못했습니다."));
     } finally {
       setSwitchingId(null);
     }
@@ -142,14 +144,14 @@ export function MobileProjectManagementSheet({
     const trimmedName = nameDraft.trim();
 
     if (!trimmedName) {
-      setSettingsError("프로젝트명을 입력해주세요.");
+      setSettingsError(t("프로젝트명을 입력해주세요."));
       return;
     }
 
     const result = onSaveSettings(trimmedName, startDraft, endDraft);
 
     if (!result.valid) {
-      setSettingsError(result.reason);
+      setSettingsError(translateTimelineRangeError(result.code, t));
       return;
     }
 
@@ -164,7 +166,7 @@ export function MobileProjectManagementSheet({
       const { exportProjectToExcel } = await import("@/lib/export/excel-export");
       await exportProjectToExcel(project);
     } catch {
-      setExportError("Excel 내보내기에 실패했습니다.");
+      setExportError(t("Excel 내보내기에 실패했습니다."));
     } finally {
       setIsExporting(false);
     }
@@ -185,7 +187,7 @@ export function MobileProjectManagementSheet({
       );
 
       if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
-        setImportError("파일 크기가 너무 큽니다.");
+        setImportError(t("파일 크기가 너무 큽니다."));
         return;
       }
 
@@ -212,7 +214,9 @@ export function MobileProjectManagementSheet({
       setPendingImport(nextProject);
       setPendingDiff(diff);
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : "가져오기에 실패했습니다.");
+      setImportError(
+        error instanceof Error ? t(error.message) : t("가져오기에 실패했습니다."),
+      );
     } finally {
       setIsImporting(false);
     }
@@ -251,11 +255,11 @@ export function MobileProjectManagementSheet({
         className="flex max-h-[85dvh] w-full max-w-sm flex-col overflow-hidden rounded-xl bg-white shadow-xl"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-zinc-900">프로젝트 관리</h2>
+          <h2 className="text-base font-semibold text-zinc-900">{t("프로젝트 관리")}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={t("닫기")}
             className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
           >
             ✕
@@ -264,10 +268,10 @@ export function MobileProjectManagementSheet({
 
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-5">
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-zinc-900">내 프로젝트</h3>
+            <h3 className="text-sm font-semibold text-zinc-900">{t("내 프로젝트")}</h3>
 
             {projectSummaries === null ? (
-              <p className="text-xs text-zinc-500">불러오는 중...</p>
+              <p className="text-xs text-zinc-500">{t("불러오는 중...")}</p>
             ) : (
               <div className="max-h-40 space-y-1 overflow-y-auto overscroll-contain">
                 {projectSummaries.map((summary) => {
@@ -287,15 +291,15 @@ export function MobileProjectManagementSheet({
                       <span className="min-w-0 flex-1 truncate">
                         {summary.name}
                         <span className="ml-1.5 text-xs text-zinc-400">
-                          업무 {summary.workItemCount}개
+                          {t("업무 {count}개", { count: summary.workItemCount })}
                         </span>
                       </span>
                       {isCurrent ? (
                         <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-                          현재
+                          {t("현재")}
                         </span>
                       ) : isSwitching ? (
-                        <span className="shrink-0 text-xs text-zinc-400">전환 중...</span>
+                        <span className="shrink-0 text-xs text-zinc-400">{t("전환 중...")}</span>
                       ) : null}
                     </button>
                   );
@@ -309,15 +313,15 @@ export function MobileProjectManagementSheet({
               onClick={openCreateProjectDialog}
               className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-zinc-300 py-3 text-sm font-medium text-zinc-600 hover:border-blue-400 hover:text-blue-600"
             >
-              <span aria-hidden>+</span> 새 프로젝트 만들기
+              <span aria-hidden>+</span> {t("새 프로젝트 만들기")}
             </button>
           </div>
 
           <div className="space-y-4 border-t border-zinc-200 pt-5">
-            <h3 className="text-sm font-semibold text-zinc-900">현재 프로젝트 설정</h3>
+            <h3 className="text-sm font-semibold text-zinc-900">{t("현재 프로젝트 설정")}</h3>
 
             <div>
-              <span className="mb-1 block text-xs text-zinc-500">프로젝트명</span>
+              <span className="mb-1 block text-xs text-zinc-500">{t("프로젝트명")}</span>
               <input
                 type="text"
                 value={nameDraft}
@@ -327,7 +331,7 @@ export function MobileProjectManagementSheet({
             </div>
 
             <div>
-              <span className="mb-1 block text-xs text-zinc-500">전체 Timeline</span>
+              <span className="mb-1 block text-xs text-zinc-500">{t("전체 Timeline")}</span>
               <div className="flex items-center gap-2">
                 <input
                   type="date"
@@ -354,20 +358,20 @@ export function MobileProjectManagementSheet({
                 onClick={onClose}
                 className="rounded-md px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
               >
-                취소
+                {t("취소")}
               </button>
               <button
                 type="button"
                 onClick={handleSaveSettings}
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
-                저장
+                {t("저장")}
               </button>
             </div>
           </div>
 
           <div className="space-y-2 border-t border-zinc-200 pt-5">
-            <h3 className="text-sm font-semibold text-zinc-900">데이터 관리</h3>
+            <h3 className="text-sm font-semibold text-zinc-900">{t("데이터 관리")}</h3>
 
             <button
               type="button"
@@ -375,7 +379,7 @@ export function MobileProjectManagementSheet({
               disabled={isExporting}
               className="w-full rounded-md border border-zinc-300 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isExporting ? "내보내는 중..." : "Excel 내보내기"}
+              {isExporting ? t("내보내는 중...") : t("Excel 내보내기")}
             </button>
             {exportError && <p className="text-xs text-red-600">{exportError}</p>}
 
@@ -392,7 +396,7 @@ export function MobileProjectManagementSheet({
               disabled={isImporting}
               className="w-full rounded-md border border-zinc-300 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isImporting ? "분석 중..." : "Excel 가져오기"}
+              {isImporting ? t("분석 중...") : t("Excel 가져오기")}
             </button>
             {importError && <p className="text-xs text-red-600">{importError}</p>}
           </div>
@@ -401,7 +405,7 @@ export function MobileProjectManagementSheet({
 
       {createDefaults && (
         <MobileCreateProjectDialog
-          defaultName="새 프로젝트"
+          defaultName={t("새 프로젝트")}
           defaultTimelineStart={createDefaults.timelineStart}
           defaultTimelineEnd={createDefaults.timelineEnd}
           onCreate={handleCreateProject}
@@ -411,9 +415,23 @@ export function MobileProjectManagementSheet({
 
       {pendingImport && diffCounts && checkpointDiffCounts && (
         <MobileConfirmDialog
-          title="가져온 내용으로 덮어쓸까요?"
-          description={`업무: 추가 ${diffCounts.added} · 수정 ${diffCounts.modified} · 삭제 ${diffCounts.deleted}\n체크포인트: 추가 ${checkpointDiffCounts.added} · 수정 ${checkpointDiffCounts.modified} · 삭제 ${checkpointDiffCounts.deleted}\n\n삭제되는 항목은 되돌릴 수 없습니다.`}
-          confirmLabel="덮어쓰기"
+          title={t("가져온 내용으로 덮어쓸까요?")}
+          description={
+            t("업무: 추가 {added} · 수정 {modified} · 삭제 {deleted}", {
+              added: diffCounts.added,
+              modified: diffCounts.modified,
+              deleted: diffCounts.deleted,
+            }) +
+            "\n" +
+            t("체크포인트: 추가 {added} · 수정 {modified} · 삭제 {deleted}", {
+              added: checkpointDiffCounts.added,
+              modified: checkpointDiffCounts.modified,
+              deleted: checkpointDiffCounts.deleted,
+            }) +
+            "\n\n" +
+            t("삭제되는 항목은 되돌릴 수 없습니다.")
+          }
+          confirmLabel={t("덮어쓰기")}
           danger
           onConfirm={confirmImport}
           onCancel={cancelImport}

@@ -1,4 +1,7 @@
+"use client";
+
 import type { Checkpoint } from "@/types/project";
+import { useT } from "@/lib/i18n/use-t";
 
 type MobileCheckpointListProps = {
   checkpoints: Checkpoint[];
@@ -13,6 +16,7 @@ export function MobileCheckpointList({
   onUpdate,
   onDelete,
 }: MobileCheckpointListProps) {
+  const t = useT();
   const sorted = [...checkpoints].sort((a, b) => a.date.localeCompare(b.date));
 
   return (
@@ -30,13 +34,13 @@ export function MobileCheckpointList({
             value={checkpoint.label}
             onChange={(event) => onUpdate(checkpoint.id, "label", event.target.value)}
             maxLength={20}
-            placeholder="메모"
+            placeholder={t("메모")}
             className="min-w-0 flex-1 rounded-md border border-zinc-300 px-2 py-1.5 text-xs outline-none focus:border-blue-600"
           />
           <button
             type="button"
             onClick={() => onDelete(checkpoint.id)}
-            aria-label="체크포인트 삭제"
+            aria-label={t("체크포인트 삭제")}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
           >
             ✕
@@ -49,7 +53,7 @@ export function MobileCheckpointList({
         onClick={onAdd}
         className="w-full rounded-md border border-dashed border-zinc-300 py-2 text-sm text-zinc-500 transition hover:border-blue-400 hover:text-blue-600"
       >
-        + 체크포인트 추가
+        {t("+ 체크포인트 추가")}
       </button>
     </div>
   );

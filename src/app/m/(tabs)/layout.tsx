@@ -11,6 +11,7 @@ import { MobileMenuSheet } from "@/components/mobile/mobile-menu-sheet";
 import { AiPanel } from "@/components/ai/ai-panel";
 import { FeedbackReportModal } from "@/components/feedback/feedback-report-modal";
 import { trackEvent } from "@/lib/analytics";
+import { useT } from "@/lib/i18n/use-t";
 
 function HamburgerIcon() {
   return (
@@ -66,10 +67,11 @@ export default function MobileTabsLayout({ children }: { children: ReactNode }) 
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
 
   const tabs = [
-    { href: "/m", label: "목록", active: pathname === "/m" },
-    { href: "/m/timeline", label: "타임라인", active: pathname === "/m/timeline" },
+    { href: "/m", label: t("목록"), active: pathname === "/m" },
+    { href: "/m/timeline", label: t("타임라인"), active: pathname === "/m/timeline" },
   ];
 
   const openFeedback = () => {
@@ -94,7 +96,7 @@ export default function MobileTabsLayout({ children }: { children: ReactNode }) 
         <button
           type="button"
           onClick={() => setIsMenuOpen(true)}
-          aria-label="메뉴 열기"
+          aria-label={t("메뉴 열기")}
           className="flex h-9 w-9 items-center justify-center justify-self-end rounded-md text-zinc-700 hover:bg-zinc-100"
         >
           <HamburgerIcon />
@@ -119,8 +121,8 @@ export default function MobileTabsLayout({ children }: { children: ReactNode }) 
             type="button"
             onClick={undo}
             disabled={!canUndo}
-            aria-label="실행 취소"
-            title="실행 취소"
+            aria-label={t("실행 취소")}
+            title={t("실행 취소")}
             className="flex h-9 w-9 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 disabled:text-zinc-300 disabled:hover:bg-transparent"
           >
             <UndoIcon />
@@ -129,8 +131,8 @@ export default function MobileTabsLayout({ children }: { children: ReactNode }) 
             type="button"
             onClick={redo}
             disabled={!canRedo}
-            aria-label="다시 실행"
-            title="다시 실행"
+            aria-label={t("다시 실행")}
+            title={t("다시 실행")}
             className="flex h-9 w-9 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 disabled:text-zinc-300 disabled:hover:bg-transparent"
           >
             <RedoIcon />
@@ -165,7 +167,7 @@ export default function MobileTabsLayout({ children }: { children: ReactNode }) 
       <button
         type="button"
         onClick={() => setIsGuideOpen(true)}
-        aria-label="사용법 보기"
+        aria-label={t("사용법 보기")}
         className="fixed bottom-20 left-6 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 text-base font-semibold text-white shadow-lg active:scale-90"
       >
         ?

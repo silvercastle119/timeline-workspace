@@ -2,19 +2,24 @@
 
 import { useState } from "react";
 import {
-  GUIDE_FAQ_ITEMS,
-  GUIDE_FULL_STEPS,
-  GUIDE_SUMMARY_STEPS,
-  GUIDE_TABS,
+  getMobileGuideFaqItems,
+  getMobileGuideFullSteps,
+  getMobileGuideSummarySteps,
+  getMobileGuideTabs,
   GuideFaqSection,
 } from "@/components/mobile/mobile-guide-content";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { useT } from "@/lib/i18n/use-t";
 
 type MobileGuideSheetProps = {
   onClose: () => void;
 };
 
 export function MobileGuideSheet({ onClose }: MobileGuideSheetProps) {
-  const [activeTab, setActiveTab] = useState<(typeof GUIDE_TABS)[number]>(GUIDE_TABS[0]);
+  const { lang } = useLanguage();
+  const t = useT();
+  const tabs = getMobileGuideTabs(lang);
+  const [activeTab, setActiveTab] = useState(0);
 
   return (
     <div
@@ -26,11 +31,11 @@ export function MobileGuideSheet({ onClose }: MobileGuideSheetProps) {
         className="flex max-h-[85dvh] w-[calc(100%-32px)] max-w-sm flex-col overflow-hidden rounded-xl bg-white shadow-xl"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-zinc-900">사용법</h2>
+          <h2 className="text-base font-semibold text-zinc-900">{t("사용법")}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={t("닫기")}
             className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
           >
             ✕
@@ -38,13 +43,13 @@ export function MobileGuideSheet({ onClose }: MobileGuideSheetProps) {
         </div>
 
         <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-zinc-200 px-3 pt-2">
-          {GUIDE_TABS.map((tab) => (
+          {tabs.map((tab, index) => (
             <button
               key={tab}
               type="button"
-              onClick={() => setActiveTab(tab)}
+              onClick={() => setActiveTab(index)}
               className={`shrink-0 whitespace-nowrap rounded-t-md px-3 py-2 text-sm font-medium ${
-                activeTab === tab
+                activeTab === index
                   ? "border-b-2 border-blue-600 text-blue-600"
                   : "text-zinc-500"
               }`}
@@ -58,9 +63,9 @@ export function MobileGuideSheet({ onClose }: MobileGuideSheetProps) {
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          {activeTab === "전체 설명" && (
+          {activeTab === 0 && (
             <div className="space-y-6">
-              {GUIDE_FULL_STEPS.map((step) => (
+              {getMobileGuideFullSteps(lang).map((step) => (
                 <div key={step.number}>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-blue-600">{step.number}</span>
@@ -74,9 +79,9 @@ export function MobileGuideSheet({ onClose }: MobileGuideSheetProps) {
             </div>
           )}
 
-          {activeTab === "요약 설명" && (
+          {activeTab === 1 && (
             <div className="space-y-4">
-              {GUIDE_SUMMARY_STEPS.map((step) => (
+              {getMobileGuideSummarySteps(lang).map((step) => (
                 <div key={step.number} className="flex gap-2 text-sm">
                   <span className="shrink-0 font-semibold text-blue-600">{step.number}</span>
                   <div>
@@ -88,7 +93,9 @@ export function MobileGuideSheet({ onClose }: MobileGuideSheetProps) {
             </div>
           )}
 
-          {activeTab === "자주 묻는 질문" && <GuideFaqSection items={GUIDE_FAQ_ITEMS} />}
+          {activeTab === 2 && (
+            <GuideFaqSection items={getMobileGuideFaqItems(lang)} />
+          )}
         </div>
       </div>
     </div>
