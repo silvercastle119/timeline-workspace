@@ -32,6 +32,9 @@ export type AnalyticsEventType =
   | "ai_review"
   | "ai_review_fail"
   | "ai_result_reopen"
+  | "ai_build_structure"
+  | "ai_build_structure_fail"
+  | "ai_build_structure_apply"
   // UI
   | "help_open"
   | "zoom_in"
