@@ -71,6 +71,9 @@ import {
 const DEFAULT_DAY_WIDTH = 40;
 const MIN_DAY_WIDTH = 20;
 const MAX_DAY_WIDTH = 96;
+// Sticky Work Items column width — kept as a real JS number (not a Tailwind
+// arbitrary-value class) since it's also consumed as an inline style value.
+const WORK_ITEM_PANEL_WIDTH = 320;
 const MIN_MOVE_WIDTH = 12;
 const TREE_HOLD_MS = 350;
 const TREE_MOVE_PX = 6;
@@ -87,32 +90,24 @@ function createInitialWorkItems(t: TranslateFn = identityTranslate): WorkItem[] 
       name: t("디지털마케팅"),
       parentId: null,
       order: 1000,
-      startDate: "2026-09-01",
-      endDate: "2026-09-20",
     }),
     createWorkItem({
       id: "002",
       name: t("시장조사"),
       parentId: "001",
       order: 1000,
-      startDate: "2026-09-01",
-      endDate: "2026-09-05",
     }),
     createWorkItem({
       id: "003",
       name: t("기획"),
       parentId: "001",
       order: 2000,
-      startDate: "2026-09-04",
-      endDate: "2026-09-12",
     }),
     createWorkItem({
       id: "004",
       name: t("디자인"),
       parentId: "001",
       order: 3000,
-      startDate: "2026-09-10",
-      endDate: "2026-09-20",
     }),
   ];
 }
@@ -191,7 +186,7 @@ function getResizeHandleWidth(
 }
 
 type DropIndicator =
-  | { mode: "root" }
+  | { mode: "root"; rect: { left: number; top: number; height: number } }
   | { mode: "child" | "before" | "after"; targetItemId: string };
 
 function computeDropIndicator(
@@ -214,7 +209,10 @@ function computeDropIndicator(
     : false;
 
   if (panelRect && clientX - panelRect.left < ROOT_ZONE_PX && !isTargetRootItem) {
-    return { mode: "root" };
+    return {
+      mode: "root",
+      rect: { left: panelRect.left, top: panelRect.top, height: panelRect.height },
+    };
   }
 
   if (!rowElement || !targetItemId) return null;
@@ -503,7 +501,26 @@ export default function Home() {
     timer: ReturnType<typeof setTimeout>;
     dragging: boolean;
   } | null>(null);
-  const treeListRef = useRef<HTMLDivElement | null>(null);
+  // Single scroll container for both the Work Items column and the Timeline —
+  // they're now the same DOM subtree (see the merged Workspace JSX below), so
+  // there's nothing left to keep in sync vertically.
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  // The date-header row lives OUTSIDE scrollContainerRef entirely (a plain
+  // sibling above it, not `position: sticky` inside it) so it's structurally
+  // immune to that container's own elastic overscroll/bounce animation on
+  // scroll-direction reversal — a `sticky` element is still part of the
+  // scrolling box being bounced and visibly wobbles with it, no CSS fix
+  // avoids that. Since it's no longer inside the scrolled content, its
+  // horizontal position has to be driven manually to track the body's
+  // horizontal scroll — done via direct style mutation in handleBodyScroll
+  // (not React state) since scroll fires far too often per second to re-render on.
+  const headerTimelineRef = useRef<HTMLDivElement | null>(null);
+
+  const handleBodyScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const headerEl = headerTimelineRef.current;
+    if (!headerEl) return;
+    headerEl.style.transform = `translateX(${WORK_ITEM_PANEL_WIDTH - event.currentTarget.scrollLeft}px)`;
+  }, []);
 
   const [dragState, setDragState] = useState<BarDragState | null>(null);
 
@@ -681,7 +698,7 @@ export default function Home() {
 
   const jumpToWorkItem = (itemId: string) => {
     selectOnly(itemId);
-    treeListRef.current
+    scrollContainerRef.current
       ?.querySelector(`[data-row-id="${itemId}"]`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
@@ -1289,7 +1306,14 @@ export default function Home() {
       });
     }
 
-    const panelRect = treeListRef.current?.getBoundingClientRect() ?? null;
+    // Note: this rect now spans the WHOLE merged Work Items + Timeline scroll
+    // container, not just the 320px-wide name column as it did before the
+    // scroll-area merge. computeDropIndicator only ever reads `.left` (the
+    // root-drop-zone check), and the sticky name column is pinned flush
+    // against this container's left edge, so `.left` is unchanged — but
+    // `.width`/`.right` no longer mean "the name column's width" and must not
+    // be used that way if this is ever extended.
+    const panelRect = scrollContainerRef.current?.getBoundingClientRect() ?? null;
     const indicator = computeDropIndicator(
       workItems,
       pending.itemId,
@@ -2103,85 +2127,309 @@ export default function Home() {
 
       {/* Workspace */}
       <div
-        className={`flex min-h-0 min-w-0 flex-1 overflow-x-auto pl-4 [-webkit-overflow-scrolling:touch] ${
+        className={`flex min-h-0 min-w-0 flex-1 pl-4 ${
           selectedItem ? "" : "pr-4"
         }`}
       >
-        {/* Work Item Panel */}
-        <section className="flex w-[320px] shrink-0 flex-col border-r border-zinc-200">
-          <div className="flex h-12 items-center border-b border-zinc-200 px-4">
-            <span className="text-sm font-semibold">
-              Work Items
-            </span>
-          </div>
+        {/* Work Items + Timeline — one merged scroll area (single scrollbar,
+            far right). The Work Items column stays visually fixed via
+            `sticky left-0` on each row's name cell instead of living in a
+            separately-scrolled panel. */}
+        {/* `isolate` confines every z-index used inside this subtree (header,
+            sticky cells, drag ghost, drop indicator) to its own stacking
+            context, so none of them can ever paint above app-level overlays
+            (modals, the AI panel) that happen to use the same small z-index
+            numbers elsewhere in the page. */}
+        <div className="isolate flex min-h-0 min-w-0 flex-1 flex-col border-r border-zinc-200">
+          {/* Header row: a plain sibling ABOVE the scroll container, not
+              `position: sticky` inside it — see headerTimelineRef's comment
+              for why this is the only way to make it truly immune to the
+              scroll container's own bounce/overscroll animation. Its
+              horizontal position is driven by handleBodyScroll (a transform,
+              updated imperatively); the "Work Items" corner is a plain
+              absolutely-positioned overlay that never moves at all. */}
+          <div className="relative z-20 h-12 shrink-0 overflow-hidden border-b border-zinc-200 bg-white">
+            <div
+              ref={headerTimelineRef}
+              className="flex h-12 will-change-transform"
+              style={{ transform: `translateX(${WORK_ITEM_PANEL_WIDTH}px)` }}
+            >
+              {timelineDates.map((date) => {
+                const saturday = isSaturday(date);
+                const sunday = isSunday(date);
 
-          <div ref={treeListRef} className="relative flex-1 overflow-auto">
-            {treeDragItemId && dropIndicator?.mode === "root" && (
-              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-[3px] bg-blue-400/60" />
-            )}
-
-            {displayRows.map(({ item, depth, hasChildren }) => {
-              const isSelected = selectedItemIds.has(item.id);
-              const isCollapsed = collapsedItemIds.has(item.id);
-              const isDropTarget =
-                dropIndicator?.mode !== "root" &&
-                dropIndicator?.mode !== undefined &&
-                dropIndicator?.targetItemId === item.id;
-
-              const dropBorderClass =
-                isDropTarget && dropIndicator?.mode === "before"
-                  ? "border-t-blue-400/70 border-b-zinc-100"
-                  : isDropTarget && dropIndicator?.mode === "after"
-                    ? "border-t-transparent border-b-blue-400/70"
-                    : "border-t-transparent border-b-zinc-100";
-              const backgroundClass =
-                (isDropTarget && dropIndicator?.mode === "child") ||
-                isSelected
-                  ? "bg-blue-50"
-                  : "hover:bg-zinc-50";
-
-              return (
-                <div
-                  key={item.id}
-                  data-row-id={item.id}
-                  onPointerDown={(event) =>
-                    handleTreeRowPointerDown(event, item)
-                  }
-                  onPointerMove={handleTreeRowPointerMove}
-                  onPointerUp={(event) => handleTreeRowPointerUp(event, item)}
-                  onPointerCancel={handleTreeRowPointerCancel}
-                  className={`flex h-11 w-full touch-none select-none items-center border-t border-b text-left transition-colors ${backgroundClass} ${dropBorderClass} ${
-                    inactiveSubtreeIds.has(item.id) ? "opacity-40" : ""
-                  } ${treeDragItemId === item.id ? "opacity-30" : ""}`}
-                >
+                return (
                   <div
-                    className="flex w-full items-center gap-2"
-                    style={{
-                      paddingLeft: `${16 + depth * 20}px`,
-                    }}
+                    key={date}
+                    className={`flex shrink-0 flex-col items-center justify-center border-r border-zinc-100 px-2 text-xs ${
+                      saturday || sunday ? "bg-zinc-50" : ""
+                    }`}
+                    style={{ width: `${dayWidth}px` }}
                   >
-                    {hasChildren ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleCollapsedItem(item.id)}
-                        className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500"
-                        aria-label={`${item.name} ${
-                          isCollapsed ? t("펼치기") : t("접기")
-                        }`}
-                      >
-                        {isCollapsed ? "▶" : "▼"}
-                      </button>
-                    ) : (
-                      <span className="w-5" />
-                    )}
-
-                    <span className="min-w-0 flex-1 truncate py-2 pr-3 text-left text-sm">
-                      {item.name}
+                    <span
+                      className={
+                        saturday
+                          ? "text-blue-600"
+                          : sunday
+                            ? "text-red-600"
+                            : "text-zinc-500"
+                      }
+                    >
+                      {`${Number(date.slice(5, 7))}/${Number(
+                        date.slice(8, 10)
+                      )}`}
+                    </span>
+                    <span
+                      className={
+                        saturday
+                          ? "text-[10px] text-blue-600"
+                          : sunday
+                            ? "text-[10px] text-red-600"
+                            : "text-[10px] text-zinc-400"
+                      }
+                    >
+                      {getWeekdayLabel(date, lang)}
                     </span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            <div
+              className="absolute inset-y-0 left-0 z-10 flex items-center border-r border-zinc-200 bg-white px-4"
+              style={{ width: `${WORK_ITEM_PANEL_WIDTH}px` }}
+            >
+              <span className="text-sm font-semibold">
+                Work Items
+              </span>
+            </div>
+          </div>
+
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleBodyScroll}
+            className="relative min-h-0 flex-1 overflow-auto [-webkit-overflow-scrolling:touch]"
+          >
+            <div
+              className="min-w-max"
+              style={{ width: `${WORK_ITEM_PANEL_WIDTH + timelineDates.length * dayWidth}px` }}
+              onClick={handleTimelineBackgroundClick}
+            >
+              {/* Body rows — one shared displayRows.map renders both the
+                  sticky name cell and the timeline cell side by side, so
+                  they're structurally guaranteed to stay aligned. */}
+              {displayRows.map(({ item, depth, hasChildren, timelineBar }) => {
+                const isSelected = selectedItemIds.has(item.id);
+                const isCollapsed = collapsedItemIds.has(item.id);
+                const isDropTarget =
+                  dropIndicator?.mode !== "root" &&
+                  dropIndicator?.mode !== undefined &&
+                  dropIndicator?.targetItemId === item.id;
+
+                const dropBorderClass =
+                  isDropTarget && dropIndicator?.mode === "before"
+                    ? "border-t-blue-400/70 border-b-zinc-100"
+                    : isDropTarget && dropIndicator?.mode === "after"
+                      ? "border-t-transparent border-b-blue-400/70"
+                      : "border-t-transparent border-b-zinc-100";
+                const backgroundClass =
+                  (isDropTarget && dropIndicator?.mode === "child") ||
+                  isSelected
+                    ? "bg-blue-50"
+                    : "hover:bg-zinc-50";
+
+                const effectiveTimeline = timelineBar?.timeline ?? null;
+                const isInteractive =
+                  !item.autoTimeline && !item.isUndecided;
+
+                return (
+                  <div key={item.id} className="flex h-11 w-full">
+                    {/* Sticky name cell */}
+                    <div
+                      data-row-id={item.id}
+                      onPointerDown={(event) =>
+                        handleTreeRowPointerDown(event, item)
+                      }
+                      onPointerMove={handleTreeRowPointerMove}
+                      onPointerUp={(event) => handleTreeRowPointerUp(event, item)}
+                      onPointerCancel={handleTreeRowPointerCancel}
+                      className={`sticky left-0 z-10 flex h-11 shrink-0 touch-none select-none items-center border-t border-b bg-white text-left transition-colors ${backgroundClass} ${dropBorderClass} ${
+                        inactiveSubtreeIds.has(item.id) ? "opacity-40" : ""
+                      } ${treeDragItemId === item.id ? "opacity-30" : ""}`}
+                      style={{ width: `${WORK_ITEM_PANEL_WIDTH}px` }}
+                    >
+                      <div
+                        className="flex w-full items-center gap-2"
+                        style={{
+                          paddingLeft: `${16 + depth * 20}px`,
+                        }}
+                      >
+                        {hasChildren ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleCollapsedItem(item.id)}
+                            className="flex h-5 w-5 items-center justify-center text-xs text-zinc-500"
+                            aria-label={`${item.name} ${
+                              isCollapsed ? t("펼치기") : t("접기")
+                            }`}
+                          >
+                            {isCollapsed ? "▶" : "▼"}
+                          </button>
+                        ) : (
+                          <span className="w-5" />
+                        )}
+
+                        <span className="min-w-0 flex-1 truncate py-2 pr-3 text-left text-sm">
+                          {item.name}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Timeline cell */}
+                    <div
+                      className={`relative h-11 shrink-0 border-b border-zinc-100 ${
+                        inactiveSubtreeIds.has(item.id) ? "opacity-40" : ""
+                      }`}
+                      style={{ width: `${timelineDates.length * dayWidth}px` }}
+                    >
+                      <div className="absolute inset-0 flex">
+                        {timelineDates.map((date) => (
+                          <div
+                            key={date}
+                            className={`shrink-0 border-r border-zinc-100 ${
+                              isSaturday(date) || isSunday(date)
+                                ? "bg-zinc-50"
+                                : ""
+                            }`}
+                            style={{ width: `${dayWidth}px` }}
+                          />
+                        ))}
+                      </div>
+
+                      {effectiveTimeline && (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(event) => event.stopPropagation()}
+                          onPointerDown={(event) =>
+                            handleBarPointerDown(event, item)
+                          }
+                          onPointerMove={handlePointerMove}
+                          onPointerUp={handlePointerUp}
+                          onPointerCancel={handlePointerCancel}
+                          className={`absolute top-2 flex h-7 items-center rounded-md px-2 text-xs select-none touch-none ${
+                            selectedItemIds.has(item.id)
+                              ? "ring-2 ring-offset-1 ring-blue-500"
+                              : ""
+                          } ${
+                            item.isUndecided
+                              ? "cursor-default border border-dashed border-zinc-300 bg-zinc-100 text-zinc-400"
+                              : item.autoTimeline
+                                ? "cursor-default text-white"
+                                : dragState?.originals.some(
+                                      (original) => original.itemId === item.id
+                                    )
+                                  ? "cursor-grabbing text-white"
+                                  : "cursor-grab text-white"
+                          }`}
+                          style={{
+                            left: `${
+                              getTimelineOffset(
+                                project.timelineStart,
+                                effectiveTimeline.startDate
+                              ) * dayWidth
+                            }px`,
+                            width: `${
+                              getTimelineDuration(
+                                effectiveTimeline.startDate,
+                                effectiveTimeline.endDate
+                              ) * dayWidth
+                            }px`,
+                            ...getBarBackground(item, effectiveTimeline, workItems),
+                          }}
+                        >
+                          {item.isUndecided ? t("일정 미정") : null}
+                          {isInteractive &&
+                            item.checkpoints
+                              .filter(
+                                (checkpoint) =>
+                                  checkpoint.date >= effectiveTimeline.startDate &&
+                                  checkpoint.date <= effectiveTimeline.endDate
+                              )
+                              .map((checkpoint) => {
+                                const baseColor = item.color ?? DEFAULT_BAR_COLOR;
+                                const showLabel = dayWidth >= 28;
+
+                                return (
+                                  <div
+                                    key={checkpoint.id}
+                                    title={checkpoint.label}
+                                    className="pointer-events-none absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-[3px] border-[3px] text-[9px] font-semibold leading-none text-white"
+                                    style={{
+                                      left: `${
+                                        getTimelineOffset(
+                                          effectiveTimeline.startDate,
+                                          checkpoint.date
+                                        ) * dayWidth
+                                      }px`,
+                                      width: `${dayWidth}px`,
+                                      backgroundColor: darkenColor(baseColor, 0.22),
+                                      borderColor: darkenColor(baseColor, 0.4),
+                                    }}
+                                  >
+                                    {showLabel && (
+                                      <span className="truncate px-0.5">
+                                        {checkpoint.label}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          {isInteractive && (
+                            <>
+                              <div
+                                onPointerDown={(event) =>
+                                  handleResizePointerDown(
+                                    event,
+                                    item,
+                                    "resize-start"
+                                  )
+                                }
+                                className="absolute inset-y-0 left-0 cursor-ew-resize"
+                                style={{
+                                  width: `${getResizeHandleWidth(
+                                    effectiveTimeline.startDate,
+                                    effectiveTimeline.endDate,
+                                    dayWidth
+                                  )}px`,
+                                }}
+                              />
+                              <div
+                                onPointerDown={(event) =>
+                                  handleResizePointerDown(
+                                    event,
+                                    item,
+                                    "resize-end"
+                                  )
+                                }
+                                className="absolute inset-y-0 right-0 cursor-ew-resize"
+                                style={{
+                                  width: `${getResizeHandleWidth(
+                                    effectiveTimeline.startDate,
+                                    effectiveTimeline.endDate,
+                                    dayWidth
+                                  )}px`,
+                                }}
+                              />
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
             {treeDragGhost && treeDraggedItem && (
               <div
@@ -2201,218 +2449,35 @@ export default function Home() {
                 <span className="min-w-0 flex-1 truncate">{treeDraggedItem.name}</span>
               </div>
             )}
+
+            {/* "Drop as root" indicator — position: fixed with a JS-computed
+                rect (see computeDropIndicator's "root" branch) rather than
+                CSS absolute/sticky, since it only needs to appear during an
+                active drag and an absolutely-positioned child of the actual
+                scrolled content would scroll away with it. */}
+            {treeDragItemId && dropIndicator?.mode === "root" && (
+              <div
+                className="pointer-events-none fixed z-20 w-[3px] bg-blue-400/60"
+                style={{
+                  left: dropIndicator.rect.left,
+                  top: dropIndicator.rect.top,
+                  height: dropIndicator.rect.height,
+                }}
+              />
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={addWorkItem}
-            className="border-t border-zinc-200 px-4 py-3 text-left text-sm text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
-          >
-            {t("+ 항목 추가")}
-          </button>
-        </section>
-
-        {/* Timeline */}
-        <section className="flex min-w-[240px] flex-1 flex-col">
-          <div className="flex-1 overflow-auto">
-            <div
-              className="min-w-max"
-              style={{ width: `${timelineDates.length * dayWidth}px` }}
-              onClick={handleTimelineBackgroundClick}
+          <div className="flex h-11 shrink-0 items-center border-t border-zinc-200 bg-white">
+            <button
+              type="button"
+              onClick={addWorkItem}
+              className="sticky left-0 flex h-full items-center px-4 text-left text-sm text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-900"
+              style={{ width: `${WORK_ITEM_PANEL_WIDTH}px` }}
             >
-              <div className="flex h-12 border-b border-zinc-200">
-                {timelineDates.map((date) => {
-                  const saturday = isSaturday(date);
-                  const sunday = isSunday(date);
-
-                  return (
-                    <div
-                      key={date}
-                      className={`flex shrink-0 flex-col items-center justify-center border-r border-zinc-100 px-2 text-xs ${
-                        saturday || sunday ? "bg-zinc-50" : ""
-                      }`}
-                      style={{ width: `${dayWidth}px` }}
-                    >
-                      <span
-                        className={
-                          saturday
-                            ? "text-blue-600"
-                            : sunday
-                              ? "text-red-600"
-                              : "text-zinc-500"
-                        }
-                      >
-                        {`${Number(date.slice(5, 7))}/${Number(
-                          date.slice(8, 10)
-                        )}`}
-                      </span>
-                      <span
-                        className={
-                          saturday
-                            ? "text-[10px] text-blue-600"
-                            : sunday
-                              ? "text-[10px] text-red-600"
-                              : "text-[10px] text-zinc-400"
-                        }
-                      >
-                        {getWeekdayLabel(date, lang)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {displayRows.map(({ item, timelineBar }) => {
-                const effectiveTimeline = timelineBar?.timeline ?? null;
-                const isInteractive =
-                  !item.autoTimeline && !item.isUndecided;
-
-                return (
-                  <div
-                    key={item.id}
-                    className={`relative h-11 border-b border-zinc-100 ${
-                      inactiveSubtreeIds.has(item.id) ? "opacity-40" : ""
-                    }`}
-                  >
-                  <div className="absolute inset-0 flex">
-                    {timelineDates.map((date) => (
-                      <div
-                        key={date}
-                        className={`shrink-0 border-r border-zinc-100 ${
-                          isSaturday(date) || isSunday(date)
-                            ? "bg-zinc-50"
-                            : ""
-                        }`}
-                        style={{ width: `${dayWidth}px` }}
-                      />
-                    ))}
-                  </div>
-
-                  {effectiveTimeline && (
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={(event) => event.stopPropagation()}
-                      onPointerDown={(event) =>
-                        handleBarPointerDown(event, item)
-                      }
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
-                      onPointerCancel={handlePointerCancel}
-                      className={`absolute top-2 flex h-7 items-center rounded-md px-2 text-xs select-none touch-none ${
-                        selectedItemIds.has(item.id)
-                          ? "ring-2 ring-offset-1 ring-blue-500"
-                          : ""
-                      } ${
-                        item.isUndecided
-                          ? "cursor-default border border-dashed border-zinc-300 bg-zinc-100 text-zinc-400"
-                          : item.autoTimeline
-                            ? "cursor-default text-white"
-                            : dragState?.originals.some(
-                                  (original) => original.itemId === item.id
-                                )
-                              ? "cursor-grabbing text-white"
-                              : "cursor-grab text-white"
-                      }`}
-                      style={{
-                        left: `${
-                          getTimelineOffset(
-                            project.timelineStart,
-                            effectiveTimeline.startDate
-                          ) * dayWidth
-                        }px`,
-                        width: `${
-                          getTimelineDuration(
-                            effectiveTimeline.startDate,
-                            effectiveTimeline.endDate
-                          ) * dayWidth
-                        }px`,
-                        ...getBarBackground(item, effectiveTimeline, workItems),
-                      }}
-                    >
-                      {item.isUndecided ? t("일정 미정") : null}
-                      {isInteractive &&
-                        item.checkpoints
-                          .filter(
-                            (checkpoint) =>
-                              checkpoint.date >= effectiveTimeline.startDate &&
-                              checkpoint.date <= effectiveTimeline.endDate
-                          )
-                          .map((checkpoint) => {
-                            const baseColor = item.color ?? DEFAULT_BAR_COLOR;
-                            const showLabel = dayWidth >= 28;
-
-                            return (
-                              <div
-                                key={checkpoint.id}
-                                title={checkpoint.label}
-                                className="pointer-events-none absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-[3px] border-[3px] text-[9px] font-semibold leading-none text-white"
-                                style={{
-                                  left: `${
-                                    getTimelineOffset(
-                                      effectiveTimeline.startDate,
-                                      checkpoint.date
-                                    ) * dayWidth
-                                  }px`,
-                                  width: `${dayWidth}px`,
-                                  backgroundColor: darkenColor(baseColor, 0.22),
-                                  borderColor: darkenColor(baseColor, 0.4),
-                                }}
-                              >
-                                {showLabel && (
-                                  <span className="truncate px-0.5">
-                                    {checkpoint.label}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
-                      {isInteractive && (
-                        <>
-                          <div
-                            onPointerDown={(event) =>
-                              handleResizePointerDown(
-                                event,
-                                item,
-                                "resize-start"
-                              )
-                            }
-                            className="absolute inset-y-0 left-0 cursor-ew-resize"
-                            style={{
-                              width: `${getResizeHandleWidth(
-                                effectiveTimeline.startDate,
-                                effectiveTimeline.endDate,
-                                dayWidth
-                              )}px`,
-                            }}
-                          />
-                          <div
-                            onPointerDown={(event) =>
-                              handleResizePointerDown(
-                                event,
-                                item,
-                                "resize-end"
-                              )
-                            }
-                            className="absolute inset-y-0 right-0 cursor-ew-resize"
-                            style={{
-                              width: `${getResizeHandleWidth(
-                                effectiveTimeline.startDate,
-                                effectiveTimeline.endDate,
-                                dayWidth
-                              )}px`,
-                            }}
-                          />
-                        </>
-                      )}
-                    </div>
-                  )}
-                  </div>
-                );
-              })}
-            </div>
+              {t("+ 항목 추가")}
+            </button>
           </div>
-        </section>
+        </div>
 
         {/* Detail Panel */}
         {selectedItem && (

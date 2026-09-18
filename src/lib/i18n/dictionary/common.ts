@@ -76,8 +76,8 @@ export const common: Record<string, string> = {
   "알 수 없는 항목": "Unknown item",
   적용하기: "Apply",
   "프로젝트 조건 (선택)": "Project conditions (optional)",
-  "예: 4명 참여, 비교적 쉬운 업무, 8월 23일부터 30일까지 작업 중단 등":
-    "e.g. 4 people, relatively easy tasks, work paused from Aug 23 to 30, etc.",
+  "예: 참여 인원, 업무 강도 및 난이도, 업무 종료 일자, 업무 불가 기간, 업무 특이사항 등":
+    "e.g. number of participants, task intensity and difficulty, task end date, unavailable periods, task notes, etc.",
   "이번 초안 생성 1회에만 적용되며 저장되지 않습니다. 개별 업무의 메모도 함께 참고합니다.":
     "Applies only to this one draft and isn't saved. Individual task memos are also taken into account.",
   "체크된 업무만 AI가 일정을 제안합니다. 이미 일정이 있는 업무도 체크하면 새 일정으로 덮어쓸 수 있으니, 그대로 유지하고 싶은 업무는 체크를 해제하세요. (하위 일정 자동 반영 업무는 선택할 수 없습니다.)":
@@ -122,4 +122,50 @@ export const common: Record<string, string> = {
   "확인 필요": "Needs review",
   주의: "Caution",
   참고: "For reference",
+
+  // AI 업무 구조 만들기 (work structure builder)
+  "AI 업무 구조 만들기": "AI work structure builder",
+  "프로젝트 설명을 입력하면 AI가 업무 구조 초안을 만들어 드립니다. 검토 후 원하는 업무만 Work Tree에 반영할 수 있습니다.":
+    "Describe your project and AI will draft a task structure. Review it and add only the tasks you want to your Work Tree.",
+  "✨ AI 업무 구조 만들기": "✨ AI work structure builder",
+  "어떤 프로젝트인가요?": "What kind of project is this?",
+  "예: 디지털마케팅, 신제품 출시, 대학 축제 기획, 신규 웹사이트 제작, 인스타그램 채널 운영":
+    "e.g. digital marketing, new product launch, university festival planning, new website build, Instagram channel operation",
+  "이 프로젝트에서 반드시 수행해야 하는 과업을 알려주세요. (선택)":
+    "Tell us the tasks/work areas this project absolutely must cover. (optional)",
+  "예: 인스타그램, 유튜브, X, 온라인 쇼룸, 인플루언서 마케팅":
+    "e.g. Instagram, YouTube, X, online showroom, influencer marketing",
+  "쉼표(,) 또는 줄바꿈으로 구분해서 여러 개를 입력할 수 있습니다.":
+    "Separate multiple items with commas or line breaks.",
+  "업무를 얼마나 세부적으로 나눌까요?": "How detailed should the tasks be?",
+  "대략적으로": "Roughly",
+  "세부적으로": "In detail",
+  "큰 단위의 업무 중심": "Broad, high-level tasks",
+  "주요 업무 중심": "Major tasks",
+  "일반적인 업무 단위": "Typical task breakdown",
+  "실행 단위까지 세부적으로 분류": "Detailed down to actionable tasks",
+  "최대한 세부적으로 분류": "As detailed as possible",
+  "AI에게 업무 구조 요청 →": "Ask AI for a task structure →",
+  "입력 다시 확인": "Check the inputs again",
+  "AI가 제안할 업무를 찾지 못했습니다.": "AI couldn't come up with any tasks to suggest.",
+  "입력한 필수 과업 {requiredCount}개를 분석하여 {groupCount}개의 업무 영역과 {totalCount}개의 업무로 구성했습니다.":
+    "Analyzed your {requiredCount} required task(s) and organized them into {groupCount} work area(s) with {totalCount} task(s) total.",
+  "AI가 프로젝트를 분석해 {groupCount}개의 업무 영역과 {totalCount}개의 업무를 제안했습니다.":
+    "AI analyzed the project and suggested {groupCount} work area(s) with {totalCount} task(s) total.",
+  "다음 필수 과업이 결과에 반영되지 않은 것 같습니다: {tasks}. 확인 후 필요하면 직접 추가해주세요.":
+    "These required tasks don't seem to be reflected in the result: {tasks}. Please check and add them manually if needed.",
+  "제안된 업무가 모두 삭제되었습니다.": "All suggested tasks have been removed.",
+  "선택한 {count}개 업무 반영": "Add the {count} selected task(s)",
+  "기존 업무와 이름 중복": "Duplicates an existing task name",
+  "업무 삭제": "Delete task",
+  "다시 만들기 / 이어 만들기": "Start over / Continue building",
+  "다시 만들기": "Start over",
+  "이어 만들기": "Continue building",
+  "반영하면 기존 Work Tree를 모두 지우고 새로 만듭니다.":
+    "Applying will clear the entire existing Work Tree and rebuild it from scratch.",
+  "반영하면 기존 Work Tree 아래에 이어서 추가됩니다.":
+    "Applying will add these below the existing Work Tree.",
+  "기존에 있던 업무가 모두 삭제되고 선택한 업무로 Work Tree가 새로 만들어집니다. 되돌릴 수 없습니다.":
+    "All existing tasks will be deleted and the Work Tree will be rebuilt from the selected tasks. This cannot be undone.",
+  "초기화하고 반영하기": "Reset and apply",
 };

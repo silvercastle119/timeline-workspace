@@ -130,3 +130,120 @@ export const reviewIssueJsonSchema = {
   },
   required: ["issues"],
 } as const;
+
+// AI 업무 구조 만들기 (work structure builder) — takes the user's own list of
+// required tasks/work areas and structures them into a task tree (grouping
+// semantically related items, merging duplicates, decomposing into detail
+// work as needed). Entirely separate from fill-schedule (which only ever
+// assigns dates to existing items). The AI never sees or touches item
+// ids/dates/memos here; it only proposes name + children, plus a
+// requiredTaskCoverage self-report used for the preservation check below.
+export type WorkStructureRequestBody = {
+  projectTopic: string;
+  /** User-listed required tasks/work areas — the AI must not drop or ignore any of these (see prompts.ts). */
+  requiredTasks: string[];
+  granularity: 1 | 2 | 3 | 4 | 5;
+  /** Existing Work Item names only (no ids/dates/memo), so the AI can avoid re-proposing what already exists. */
+  existingWorkItemNames: string[];
+};
+
+export type WorkStructureNode = {
+  name: string;
+  children: WorkStructureNode[];
+};
+
+// The AI's own claim of which output node represents which input required
+// task. Never trusted on its own — validate-work-structure.ts cross-checks
+// representedAsNodeName against the actual (post-hardcap) tree before
+// accepting it, and falls back to exact-string presence otherwise.
+export type RequiredTaskCoverageEntry = {
+  requiredTask: string;
+  representedAsNodeName: string;
+};
+
+export type WorkStructureResponseBody = {
+  items: WorkStructureNode[];
+  totalCount: number;
+  notes: string[];
+  requiredTaskCoverage: RequiredTaskCoverageEntry[];
+};
+
+// Root counts as depth 1. Kept in sync with the explicitly-nested (not
+// recursive $ref) JSON schema below, since Gemini's structured-output
+// support for self-referential schemas isn't reliable.
+export const WORK_STRUCTURE_MAX_DEPTH = 4;
+export const WORK_STRUCTURE_MAX_TOTAL_NODES = 60;
+
+const workStructureLeafSchema = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+  },
+  required: ["name"],
+} as const;
+
+const workStructureLevel3Schema = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    children: { type: "array", items: workStructureLeafSchema },
+  },
+  required: ["name", "children"],
+} as const;
+
+const workStructureLevel2Schema = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    children: { type: "array", items: workStructureLevel3Schema },
+  },
+  required: ["name", "children"],
+} as const;
+
+const workStructureLevel1Schema = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    children: { type: "array", items: workStructureLevel2Schema },
+  },
+  required: ["name", "children"],
+} as const;
+
+const requiredTaskCoverageEntrySchema = {
+  type: "object",
+  properties: {
+    requiredTask: { type: "string", description: "입력받은 requiredTasks 항목 문자열 그대로" },
+    representedAsNodeName: {
+      type: "string",
+      description: "이 필수 과업을 대표하는 items 트리 내 노드의 name (어느 깊이든 무방)",
+    },
+  },
+  required: ["requiredTask", "representedAsNodeName"],
+} as const;
+
+export const workStructureJsonSchema = {
+  type: "object",
+  properties: {
+    items: {
+      type: "array",
+      description: "프로젝트 최상위 업무 목록 (최대 4단계 깊이)",
+      items: workStructureLevel1Schema,
+    },
+    totalCount: {
+      type: "number",
+      description: "items에 포함된 전체 업무(하위 포함) 개수",
+    },
+    notes: {
+      type: "array",
+      description: "업무 구성 근거나 참고사항 (선택, 없으면 빈 배열)",
+      items: { type: "string" },
+    },
+    requiredTaskCoverage: {
+      type: "array",
+      description:
+        "requiredTasks의 각 항목마다 정확히 하나씩, 그 항목을 items 트리의 어떤 노드로 표현했는지 선언",
+      items: requiredTaskCoverageEntrySchema,
+    },
+  },
+  required: ["items", "totalCount", "notes", "requiredTaskCoverage"],
+} as const;
