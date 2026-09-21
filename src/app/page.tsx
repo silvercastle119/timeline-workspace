@@ -2196,7 +2196,7 @@ export default function Home() {
             </div>
 
             <div
-              className="absolute inset-y-0 left-0 z-10 flex items-center border-r border-zinc-200 bg-white px-4"
+              className="absolute inset-y-0 left-0 z-10 flex items-center border-r-2 border-zinc-300 bg-white px-4"
               style={{ width: `${WORK_ITEM_PANEL_WIDTH}px` }}
             >
               <span className="text-sm font-semibold">
@@ -2247,13 +2247,14 @@ export default function Home() {
                     {/* Sticky name cell */}
                     <div
                       data-row-id={item.id}
+                      onClick={(event) => event.stopPropagation()}
                       onPointerDown={(event) =>
                         handleTreeRowPointerDown(event, item)
                       }
                       onPointerMove={handleTreeRowPointerMove}
                       onPointerUp={(event) => handleTreeRowPointerUp(event, item)}
                       onPointerCancel={handleTreeRowPointerCancel}
-                      className={`sticky left-0 z-10 flex h-11 shrink-0 touch-none select-none items-center border-t border-b bg-white text-left transition-colors ${backgroundClass} ${dropBorderClass} ${
+                      className={`sticky left-0 z-10 flex h-11 shrink-0 touch-none select-none items-center border-t border-r-2 border-b border-r-zinc-300 bg-white text-left transition-colors ${backgroundClass} ${dropBorderClass} ${
                         inactiveSubtreeIds.has(item.id) ? "opacity-40" : ""
                       } ${treeDragItemId === item.id ? "opacity-30" : ""}`}
                       style={{ width: `${WORK_ITEM_PANEL_WIDTH}px` }}
